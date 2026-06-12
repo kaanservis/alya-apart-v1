@@ -21,6 +21,12 @@ export function bootstrapAppRoute() {
     return
   }
 
+  const directTab = pathname.replace(/^\//, '').split('/')[0]
+  if (ADMIN_TAB_PATHS.includes(directTab)) {
+    window.history.replaceState({}, '', `/admin#/${directTab}`)
+    return
+  }
+
   const hashPath = hash.replace(/^#\/?/, '').split('?')[0]
 
   if (hashPath && ADMIN_TAB_PATHS.some((tab) => hashPath.startsWith(tab))) {
