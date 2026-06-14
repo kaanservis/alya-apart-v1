@@ -1,7 +1,36 @@
 {
+  "redirects": [
+    {
+      "source": "/site",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/site/",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/site/r/:slug",
+      "destination": "/r/:slug",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/r/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ]

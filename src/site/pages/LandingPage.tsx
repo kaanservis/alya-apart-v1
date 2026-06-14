@@ -15,7 +15,7 @@ export function LandingPage() {
     title: settings.meta_title || settings.site_title,
     description: settings.meta_description,
     keywords: settings.meta_keywords,
-    path: '/site',
+    path: '/',
     image: heroBackgroundUrl,
   })
 

@@ -103,6 +103,13 @@ export function getPathForTab(tab: AppTab): string {
 }
 
 export function readTabFromLocation(): AppTab {
+  if (window.location.pathname.startsWith('/admin')) {
+    const hashPath = window.location.hash.replace(/^#\/?/, '').split('?')[0]
+    if (!hashPath) {
+      return DEFAULT_TAB
+    }
+  }
+
   return getTabFromPath(window.location.hash || getPathForTab(DEFAULT_TAB))
 }
 

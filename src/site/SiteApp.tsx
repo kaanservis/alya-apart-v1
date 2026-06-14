@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { SiteLayout } from './components/SiteLayout'
 import { LandingPage } from './pages/LandingPage'
 import { PrivateRoomPage } from './pages/PrivateRoomPage'
+import { scrollToSection } from './siteConfig'
 import { SiteContentProvider } from './SiteContentContext'
 import { readSiteLocation, type SiteLocation } from './siteRouter'
 
@@ -16,6 +17,17 @@ export function SiteApp() {
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
+
+  useEffect(() => {
+    if (location.page !== 'home') {
+      return
+    }
+
+    const hash = window.location.hash.replace(/^#/, '')
+    if (hash) {
+      requestAnimationFrame(() => scrollToSection(hash))
+    }
+  }, [location.page])
 
   return (
     <SiteContentProvider>

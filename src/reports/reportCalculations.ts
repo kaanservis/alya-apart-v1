@@ -1,4 +1,5 @@
 import type { AccommodationUnit, Expense, Reservation } from '../types/database'
+import { getRemainingBalance, getTotalCollected } from '../reservations/depositCalculations'
 import { calculateNights } from '../reservations/pricing'
 import {
   clampRangeEnd,
@@ -165,11 +166,11 @@ export function buildReportData(
   )
 
   const toplamTahsilat = inRangeReservations.reduce(
-    (sum, reservation) => sum + Number(reservation.alinan_ucret),
+    (sum, reservation) => sum + getTotalCollected(reservation),
     0,
   )
   const bekleyenTahsilat = inRangeReservations.reduce(
-    (sum, reservation) => sum + Number(reservation.kalan_bakiye),
+    (sum, reservation) => sum + getRemainingBalance(reservation),
     0,
   )
 

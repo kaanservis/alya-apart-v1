@@ -247,7 +247,7 @@ export function BackupPage({ onUpdated }: BackupPageProps) {
             <div>
               <p className="text-2xl font-bold uppercase tracking-wide sm:text-3xl">JSON Yedek Al</p>
               <p className="mt-2 text-sm text-blue-100/90">
-                Odalar, rezervasyonlar, tahsilatlar ve masraflar —{' '}
+                Odalar, rezervasyonlar ve masraflar —{' '}
                 <span className="font-semibold">alya-apart-backup-YYYY-MM-DD-HH-MM.json</span>
               </p>
             </div>
@@ -300,7 +300,7 @@ export function BackupPage({ onUpdated }: BackupPageProps) {
                 </button>
               </div>
 
-              <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <dl className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl bg-slate-50 p-4">
                   <dt className="text-xs font-semibold uppercase text-slate-500">Oda</dt>
                   <dd className="mt-1 text-2xl font-bold text-slate-900">{importPreview.roomCount}</dd>
@@ -309,12 +309,6 @@ export function BackupPage({ onUpdated }: BackupPageProps) {
                   <dt className="text-xs font-semibold uppercase text-slate-500">Rezervasyon</dt>
                   <dd className="mt-1 text-2xl font-bold text-slate-900">
                     {importPreview.reservationCount}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <dt className="text-xs font-semibold uppercase text-slate-500">Tahsilat</dt>
-                  <dd className="mt-1 text-2xl font-bold text-slate-900">
-                    {importPreview.paymentCount}
                   </dd>
                 </div>
                 <div className="rounded-xl bg-slate-50 p-4">
@@ -348,7 +342,7 @@ export function BackupPage({ onUpdated }: BackupPageProps) {
                     <span>
                       <span className="block text-sm font-bold text-slate-900">Tam Geri Yükleme</span>
                       <span className="mt-1 block text-xs text-slate-600">
-                        Mevcut rezervasyon, tahsilat ve masraf kayıtlarını silip yedeği yükler.
+                        Mevcut rezervasyon ve masraf kayıtlarını silip yedeği yükler.
                       </span>
                     </span>
                   </label>
@@ -415,7 +409,7 @@ export function BackupPage({ onUpdated }: BackupPageProps) {
             <div>
               <p className="text-2xl font-bold uppercase tracking-wide sm:text-3xl">Excel Dışa Aktar</p>
               <p className="mt-2 text-sm text-emerald-100/90">
-                Rezervasyonlar, tahsilatlar ve masraflar — CSV/Excel uyumlu dosya
+                Rezervasyonlar ve masraflar — CSV/Excel uyumlu dosya
               </p>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { formatReservationDate } from './reservationDisplay'
+import { getTotalCollected } from './depositCalculations'
 import { ReservationFormPanel } from './ReservationFormPanel'
 
 interface ReservationsManagementPageProps {
@@ -203,7 +204,7 @@ export function ReservationsManagementPage({
                       {formatCurrency(reservation.toplam_ucret)}
                     </td>
                     <td className="px-4 py-3 text-emerald-700">
-                      {formatCurrency(reservation.alinan_ucret)}
+                      {formatCurrency(getTotalCollected(reservation))}
                     </td>
                     <td className="px-4 py-3">
                       <button

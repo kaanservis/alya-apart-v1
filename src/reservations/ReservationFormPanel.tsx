@@ -179,38 +179,18 @@ export function ReservationFormPanel({
 
   const totalAmount = useMemo(() => parseAmount(values.toplam_ucret), [values.toplam_ucret])
 
+  const collectedAmount = useMemo(() => {
+    const parsed = parseAmount(values.alinan_tutar)
+    return Number.isNaN(parsed) ? 0 : parsed
+  }, [values.alinan_tutar])
+
   const remainingBalance = useMemo(() => {
     const toplam = parseAmount(values.toplam_ucret)
-    const kaporaTahsil = parseAmount(values.kapora_tahsil)
-    const girisTeAlinan = parseAmount(values.giris_te_alinan)
-
     if (Number.isNaN(toplam)) {
       return 0
     }
-
-    const collected =
-      (Number.isNaN(kaporaTahsil) ? 0 : kaporaTahsil) +
-      (Number.isNaN(girisTeAlinan) ? 0 : girisTeAlinan)
-
-    return calculateRemainingBalance(toplam, collected)
-  }, [values.toplam_ucret, values.kapora_tahsil, values.giris_te_alinan])
-
-  const totalCollected = useMemo(() => {
-    const kaporaTahsil = parseAmount(values.kapora_tahsil)
-    const girisTeAlinan = parseAmount(values.giris_te_alinan)
-    return (
-      (Number.isNaN(kaporaTahsil) ? 0 : kaporaTahsil) +
-      (Number.isNaN(girisTeAlinan) ? 0 : girisTeAlinan)
-    )
-  }, [values.kapora_tahsil, values.giris_te_alinan])
-
-  const checkoutDue = useMemo(() => {
-    const toplam = parseAmount(values.toplam_ucret)
-    if (Number.isNaN(toplam)) {
-      return 0
-    }
-    return Math.max(0, toplam - totalCollected)
-  }, [values.toplam_ucret, totalCollected])
+    return calculateRemainingBalance(toplam, collectedAmount)
+  }, [values.toplam_ucret, collectedAmount])
 
   const showGuestSection = datesValid && Boolean(values.konaklama_birimi_id)
   const showPricingSection = showGuestSection
@@ -237,17 +217,10 @@ export function ReservationFormPanel({
   }
 
   function handlePriceChange(
-    field: 'gunluk_ucret' | 'toplam_ucret' | 'kapora' | 'kapora_tahsil' | 'giris_te_alinan',
+    field: 'gunluk_ucret' | 'toplam_ucret' | 'alinan_tutar',
     raw: string,
   ) {
     handleChange(field, sanitizePriceInput(raw))
-  }
-
-  function markDepositCollected() {
-    const kapora = parseAmount(values.kapora)
-    if (!Number.isNaN(kapora) && kapora > 0) {
-      handleChange('kapora_tahsil', String(kapora))
-    }
   }
 
   function handleSelectRoom(unitId: string) {
@@ -500,9 +473,9 @@ export function ReservationFormPanel({
 
         {showPricingSection && (
           <FormSection title="Fiyat ve Ödeme" accent="orange">
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-3">
               <label className="block text-sm">
-                <span className="mb-2 block font-medium text-slate-700">Gecelik Fiyat</span>
+                <span className="mb-2 block font-medium text-slate-700">Gecelik Ücret</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -532,68 +505,26 @@ export function ReservationFormPanel({
               </label>
 
               <label className="block text-sm">
-                <span className="mb-2 block font-medium text-slate-700">Kapora</span>
+                <span className="mb-2 block font-medium text-slate-700">Alınan Ücret</span>
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={values.kapora}
+                  value={values.alinan_tutar}
                   placeholder="0,00"
-                  onChange={(event) => handlePriceChange('kapora', event.target.value)}
+                  onChange={(event) => handlePriceChange('alinan_tutar', event.target.value)}
                   className={fieldClassName}
                 />
-                {errors.kapora && (
-                  <span className="mt-1 block text-xs text-red-600">{errors.kapora}</span>
-                )}
-              </label>
-
-              <label className="block text-sm">
-                <span className="mb-2 block font-medium text-slate-700">Kapora Tahsil</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={values.kapora_tahsil}
-                  placeholder="0,00"
-                  onChange={(event) => handlePriceChange('kapora_tahsil', event.target.value)}
-                  className={fieldClassName}
-                />
-                {errors.kapora_tahsil && (
-                  <span className="mt-1 block text-xs text-red-600">{errors.kapora_tahsil}</span>
-                )}
-                <button
-                  type="button"
-                  onClick={markDepositCollected}
-                  className="mt-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                >
-                  Kapora Alındı
-                </button>
-              </label>
-
-              <label className="block text-sm">
-                <span className="mb-2 block font-medium text-slate-700">Girişte Alınan</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={values.giris_te_alinan}
-                  placeholder="0,00"
-                  onChange={(event) => handlePriceChange('giris_te_alinan', event.target.value)}
-                  className={fieldClassName}
-                />
-                {errors.giris_te_alinan && (
-                  <span className="mt-1 block text-xs text-red-600">{errors.giris_te_alinan}</span>
+                {errors.alinan_tutar && (
+                  <span className="mt-1 block text-xs text-red-600">{errors.alinan_tutar}</span>
                 )}
               </label>
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
               <SummaryCard label="Toplam Ücret" value={totalDisplay} accent="orange" />
               <SummaryCard
-                label="Toplam Tahsil Edilen"
-                value={formatCurrency(totalCollected)}
-                accent="blue"
-              />
-              <SummaryCard
-                label="Çıkışta Alınacak"
-                value={formatCurrency(checkoutDue)}
+                label="Alınan Ücret"
+                value={formatCurrency(collectedAmount)}
                 accent="blue"
               />
               <SummaryCard label="Kalan Bakiye" value={balanceDisplay} accent="slate" />

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import type { AccommodationUnit, PaymentRecord, Reservation } from '../types/database'
-import { SlideOverPanel } from '../components/SlideOverPanel'
+import type { AccommodationUnit, Reservation } from '../types/database'
 import { PaymentBreakdown } from '../components/PaymentBreakdown'
+import { SlideOverPanel } from '../components/SlideOverPanel'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
+import { getRemainingBalance } from '../reservations/depositCalculations'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import { reservationToFormValues } from '../reservations/formState'
 import { ReservationFormPanel } from '../reservations/ReservationFormPanel'
@@ -15,32 +16,18 @@ interface CustomerDetailPanelProps {
   unitName: string
   units: AccommodationUnit[]
   reservations: Reservation[]
-  paymentRecords: PaymentRecord[]
   onClose: () => void
   onUpdated: () => void
   unitMap: Map<string, string>
 }
 
-type ActionMode = 'view' | 'edit' | 'changeRoom' | 'changeDates' | 'updatePayment'
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
-function formatPaymentDate(value: string) {
-  return formatReservationDate(value)
-}
+type ActionMode = 'view' | 'edit' | 'changeRoom' | 'changeDates'
 
 export function CustomerDetailPanel({
   reservation,
   unitName,
   units,
   reservations,
-  paymentRecords,
   onClose,
   onUpdated,
   unitMap,
@@ -52,9 +39,6 @@ export function CustomerDetailPanel({
   const [selectedRoomId, setSelectedRoomId] = useState(reservation.konaklama_birimi_id)
   const [checkIn, setCheckIn] = useState(reservation.giris_tarihi)
   const [checkOut, setCheckOut] = useState(reservation.cikis_tarihi)
-  const [kaporaAmount, setKaporaAmount] = useState(String(reservation.kapora ?? 0))
-  const [kaporaCollected, setKaporaCollected] = useState(String(reservation.kapora_tahsil ?? 0))
-  const [checkInCollected, setCheckInCollected] = useState(String(reservation.giris_te_alinan ?? 0))
 
   const guestHistory = useMemo(
     () => findGuestReservationHistory(reservations, reservation),
@@ -62,13 +46,7 @@ export function CustomerDetailPanel({
   )
 
   const availableRooms = useMemo(() => {
-    return getAvailableUnits(
-      units,
-      reservations,
-      checkIn,
-      checkOut,
-      reservation.id,
-    )
+    return getAvailableUnits(units, reservations, checkIn, checkOut, reservation.id)
   }, [units, reservations, checkIn, checkOut, reservation.id])
 
   async function handleDelete() {
@@ -122,25 +100,6 @@ export function CustomerDetailPanel({
       setMode('view')
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Tarihler güncellenemedi.')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  async function handlePaymentUpdate() {
-    setProcessing(true)
-    setActionError(null)
-
-    try {
-      const values = reservationToFormValues(reservation)
-      values.kapora = kaporaAmount
-      values.kapora_tahsil = kaporaCollected
-      values.giris_te_alinan = checkInCollected
-      await updateReservation(reservation.id, values, reservation.konaklama_birimi_id)
-      onUpdated()
-      setMode('view')
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Ödeme güncellenemedi.')
     } finally {
       setProcessing(false)
     }
@@ -222,34 +181,16 @@ export function CustomerDetailPanel({
               <WhatsAppGuestActions
                 phone={reservation.telefon}
                 adSoyad={reservation.ad_soyad}
-                kalanBakiye={reservation.kalan_bakiye}
+                kalanBakiye={getRemainingBalance(reservation)}
               />
             </div>
           </section>
 
           <section className="rounded-2xl border border-orange-200 bg-orange-50/60 p-5">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-orange-800">
-              Ödeme Bilgileri
-            </h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-orange-800">Ödeme</h3>
             <div className="mt-4">
               <PaymentBreakdown reservation={reservation} />
             </div>
-
-            {paymentRecords.length > 0 && (
-              <ul className="mt-4 space-y-2">
-                {paymentRecords.map((record) => (
-                  <li
-                    key={record.id}
-                    className="rounded-xl border border-orange-100 bg-white px-4 py-3 text-sm"
-                  >
-                    <p className="font-semibold text-slate-900">
-                      {formatCurrency(record.amount)} — {formatPaymentDate(record.payment_date)}
-                    </p>
-                    {record.note && <p className="mt-1 text-slate-600">{record.note}</p>}
-                  </li>
-                ))}
-              </ul>
-            )}
           </section>
 
           {reservation.notlar && (
@@ -347,52 +288,6 @@ export function CustomerDetailPanel({
             </section>
           )}
 
-          {mode === 'updatePayment' && (
-            <section className="rounded-2xl border border-orange-200 bg-orange-50/40 p-5">
-              <h3 className="text-sm font-bold text-orange-900">Ödeme Güncelle</h3>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium">Kapora</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={kaporaAmount}
-                    onChange={(event) => setKaporaAmount(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium">Kapora Tahsil</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={kaporaCollected}
-                    onChange={(event) => setKaporaCollected(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium">Girişte Alınan</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={checkInCollected}
-                    onChange={(event) => setCheckInCollected(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
-                  />
-                </label>
-              </div>
-              <button
-                type="button"
-                disabled={processing}
-                onClick={handlePaymentUpdate}
-                className="mt-4 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
-              >
-                {processing ? 'Kaydediliyor...' : 'Ödemeyi Kaydet'}
-              </button>
-            </section>
-          )}
-
           {mode === 'view' && (
             <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-5">
               <button
@@ -415,13 +310,6 @@ export function CustomerDetailPanel({
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
               >
                 Tarih Değiştir
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('updatePayment')}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
-              >
-                Ödeme Güncelle
               </button>
               <button
                 type="button"

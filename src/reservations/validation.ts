@@ -117,36 +117,18 @@ export function validateReservationForm(
     errors.toplam_ucret = 'Geçerli bir toplam ücret giriniz.'
   }
 
-  const kapora = parseAmount(values.kapora)
-  const kaporaTahsil = parseAmount(values.kapora_tahsil)
-  const girisTeAlinan = parseAmount(values.giris_te_alinan)
+  const alinanTutar = parseAmount(values.alinan_tutar)
 
-  if (Number.isNaN(kapora) || kapora < 0) {
-    errors.kapora = 'Geçerli bir kapora tutarı giriniz.'
-  }
-
-  if (Number.isNaN(kaporaTahsil) || kaporaTahsil < 0) {
-    errors.kapora_tahsil = 'Geçerli bir kapora tahsil tutarı giriniz.'
-  }
-
-  if (Number.isNaN(girisTeAlinan) || girisTeAlinan < 0) {
-    errors.giris_te_alinan = 'Geçerli bir giriş tahsilat tutarı giriniz.'
+  if (Number.isNaN(alinanTutar) || alinanTutar < 0) {
+    errors.alinan_tutar = 'Geçerli bir alınan ücret giriniz.'
   }
 
   if (
-    !Number.isNaN(kapora) &&
-    !Number.isNaN(kaporaTahsil) &&
-    kaporaTahsil > kapora
+    !Number.isNaN(toplamUcret) &&
+    !Number.isNaN(alinanTutar) &&
+    alinanTutar > toplamUcret
   ) {
-    errors.kapora_tahsil = 'Kapora tahsil tutarı kapora tutarından fazla olamaz.'
-  }
-
-  const totalCollected =
-    (Number.isNaN(kaporaTahsil) ? 0 : kaporaTahsil) +
-    (Number.isNaN(girisTeAlinan) ? 0 : girisTeAlinan)
-
-  if (!Number.isNaN(toplamUcret) && totalCollected > toplamUcret) {
-    errors.giris_te_alinan = 'Toplam tahsil edilen tutar toplam ücretten fazla olamaz.'
+    errors.alinan_tutar = 'Alınan ücret toplam ücretten fazla olamaz.'
   }
 
   if (

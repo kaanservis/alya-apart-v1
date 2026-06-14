@@ -5,16 +5,14 @@ export interface SiteLocation {
   roomShareSlug?: string
 }
 
-const SITE_BASE = '/site'
-
 export function readSiteLocation(): SiteLocation {
-  const pathname = window.location.pathname.replace(/\/+$/, '') || SITE_BASE
+  const pathname = window.location.pathname.replace(/\/+$/, '') || '/'
 
-  if (pathname === SITE_BASE || pathname === `${SITE_BASE}/`) {
+  if (pathname === '/' || pathname === '') {
     return { page: 'home' }
   }
 
-  const privateMatch = pathname.match(/^\/site\/r\/([^/]+)$/)
+  const privateMatch = pathname.match(/^\/r\/([^/]+)$/)
   if (privateMatch) {
     return {
       page: 'private-room',
@@ -26,5 +24,5 @@ export function readSiteLocation(): SiteLocation {
 }
 
 export function getSiteHomePath() {
-  return SITE_BASE
+  return '/'
 }

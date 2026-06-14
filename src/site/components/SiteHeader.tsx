@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { scrollToSection } from '../siteConfig'
 import { getSiteHomePath } from '../siteRouter'
-import { SITE_SECTIONS } from '../siteSections'
+import { PUBLIC_NAV_LINKS } from '../siteSections'
 import { useSiteContent } from '../SiteContentContext'
 
 interface SiteHeaderProps {
@@ -32,6 +32,7 @@ export function SiteHeader({ privatePage = false }: SiteHeaderProps) {
   }
 
   function handleHomeClick() {
+    setMenuOpen(false)
     if (privatePage) {
       window.location.href = getSiteHomePath()
       return
@@ -58,22 +59,18 @@ export function SiteHeader({ privatePage = false }: SiteHeaderProps) {
         </button>
 
         <nav className="hidden items-center gap-1 lg:flex">
-          {SITE_SECTIONS.map((link) => (
+          {PUBLIC_NAV_LINKS.map((link) => (
             <button
               key={link.id}
               type="button"
-              onClick={() => handleNavClick(link.id)}
+              onClick={() =>
+                link.id === 'hero' ? handleHomeClick() : handleNavClick(link.id)
+              }
               className="rounded-full px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-sky-50 hover:text-sky-800"
             >
               {link.label}
             </button>
           ))}
-          <a
-            href="/admin"
-            className="ml-2 rounded-full px-3.5 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100"
-          >
-            Yönetim
-          </a>
         </nav>
 
         <button
@@ -91,26 +88,18 @@ export function SiteHeader({ privatePage = false }: SiteHeaderProps) {
       {menuOpen && (
         <div className="border-t border-slate-100 px-4 py-3 lg:hidden">
           <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={handleHomeClick}
-              className="rounded-xl bg-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-800"
-            >
-              Ana Sayfa
-            </button>
-            {SITE_SECTIONS.map((link) => (
+            {PUBLIC_NAV_LINKS.map((link) => (
               <button
                 key={link.id}
                 type="button"
-                onClick={() => handleNavClick(link.id)}
+                onClick={() =>
+                  link.id === 'hero' ? handleHomeClick() : handleNavClick(link.id)
+                }
                 className="rounded-xl bg-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-800"
               >
                 {link.label}
               </button>
             ))}
-            <a href="/admin" className="rounded-xl px-4 py-3 text-sm font-medium text-slate-600">
-              Yönetim Paneli
-            </a>
           </div>
         </div>
       )}

@@ -6,7 +6,6 @@ import { formatReservationDate } from '../reservations/reservationDisplay'
 import { ReservationFormPanel } from '../reservations/ReservationFormPanel'
 import { CheckoutAlertSection } from './CheckoutAlertSection'
 import { CleaningAlertSection } from './CleaningAlertSection'
-import { DepositAlertSection } from './DepositAlertSection'
 import {
   findActiveReservationForUnit,
   findLastGuestForUnit,
@@ -339,8 +338,6 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
         <CheckoutAlertSection units={units} reservations={reservations} onUpdated={onUpdated} />
         <CleaningAlertSection units={units} reservations={reservations} onUpdated={onUpdated} />
       </section>
-
-      <DepositAlertSection units={units} reservations={reservations} />
 
       <SupabaseConnectionTest collapsible defaultCollapsed title="Sistem Durumu" />
 

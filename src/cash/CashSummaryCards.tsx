@@ -21,16 +21,6 @@ const cards = [
     label: 'Toplam Kalan Bakiye',
     className: 'border-amber-200 bg-amber-50 text-amber-950',
   },
-  {
-    key: 'toplamKapora' as const,
-    label: 'Toplam Kapora',
-    className: 'border-violet-200 bg-violet-50 text-violet-950',
-  },
-  {
-    key: 'bekleyenKaporalar' as const,
-    label: 'Bekleyen Kaporalar',
-    className: 'border-rose-200 bg-rose-50 text-rose-950',
-  },
 ]
 
 export function CashSummaryCards({ summary }: CashSummaryCardsProps) {

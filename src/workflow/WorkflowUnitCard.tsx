@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { formatReservationDate } from '../reservations/reservationDisplay'
-import { DepositBadge } from '../components/DepositBadge'
+import { getRemainingBalance } from '../reservations/depositCalculations'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
 import { completeCheckout, completeCleaning } from './workflowService'
 import { normalizeUnitStatus } from './unitStatusLogic'
@@ -114,9 +114,6 @@ export function WorkflowUnitCard({
             Misafir
           </p>
           <p className="mt-1 text-base font-bold text-slate-900">{activeReservation.ad_soyad}</p>
-          <div className="mt-2">
-            <DepositBadge reservation={activeReservation} />
-          </div>
           <p className="mt-2 text-sm text-slate-600">
             Çıkış: {formatReservationDate(activeReservation.cikis_tarihi)}
           </p>
@@ -124,7 +121,7 @@ export function WorkflowUnitCard({
             <WhatsAppGuestActions
               phone={activeReservation.telefon}
               adSoyad={activeReservation.ad_soyad}
-              kalanBakiye={activeReservation.kalan_bakiye}
+              kalanBakiye={getRemainingBalance(activeReservation)}
               compact
             />
           </div>

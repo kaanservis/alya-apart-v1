@@ -5,14 +5,12 @@ export interface BackupPayload {
   exportedAt: string
   rooms: import('../types/database').AccommodationUnit[]
   reservations: import('../types/database').Reservation[]
-  paymentRecords: import('../types/database').PaymentRecord[]
   expenses: import('../types/database').Expense[]
 }
 
 export interface BackupPreview {
   roomCount: number
   reservationCount: number
-  paymentCount: number
   expenseCount: number
   exportedAt: string | null
 }

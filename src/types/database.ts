@@ -23,9 +23,7 @@ export interface Reservation {
   kapora: number
   kapora_tahsil: number
   giris_te_alinan: number
-  cikista_alinacak: number
-  alinan_ucret: number
-  kalan_bakiye: number
+  alinan_tutar: number
   notlar: string | null
   durum: ReservationStatus
   created_at: string
@@ -137,12 +135,12 @@ export interface Database {
       }
       reservations: {
         Row: Reservation
-        Insert: Omit<Reservation, 'id' | 'kalan_bakiye' | 'created_at' | 'updated_at'> & {
+        Insert: Omit<Reservation, 'id' | 'created_at' | 'updated_at'> & {
           id?: string
           created_at?: string
           updated_at?: string
         }
-        Update: Partial<Omit<Reservation, 'kalan_bakiye'>>
+        Update: Partial<Omit<Reservation, 'id' | 'created_at' | 'updated_at'>>
       }
       payment_records: {
         Row: PaymentRecord

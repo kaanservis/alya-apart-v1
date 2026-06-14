@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getActiveSeasonYear } from '../calendar/dateUtils'
+import { useSiteSeo } from '../site/useSiteSeo'
 import { BackupPage } from '../backup/BackupPage'
 import { CashPage } from '../cash/CashPage'
-import { usePaymentRecords } from '../cash/usePaymentRecords'
 import { ExpensesPage } from '../expenses/ExpensesPage'
 import { useExpenses } from '../expenses/useExpenses'
 import { CustomersPage } from '../customers/CustomersPage'
@@ -28,17 +28,19 @@ function usesSharedWorkflowData(tab: AppTab) {
 }
 
 export function AppShellPage() {
+  useSiteSeo({
+    title: 'ALYA APART Yönetim',
+    description: 'ALYA APART iç yönetim paneli.',
+    path: '/admin',
+    noIndex: true,
+  })
+
   const seasonYear = useMemo(() => getActiveSeasonYear(new Date()), [])
   const [activeTab, setActiveTab] = useState<AppTab>(() => readTabFromLocation())
   const [refreshToken, setRefreshToken] = useState(0)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const { units, reservations, loading, error, refetch } = useWorkflowData(seasonYear)
-  const {
-    paymentRecords,
-    loading: paymentLoading,
-    error: paymentError,
-  } = usePaymentRecords(refreshToken)
   const {
     expenses,
     loading: expensesLoading,
@@ -86,7 +88,7 @@ export function AppShellPage() {
       'Tüm misafirleri ve rezervasyonları arayın, filtreleyin, düzenleyin ve dışa aktarın.',
     history:
       'Tamamlanmış rezervasyonları misafir adı, telefon, oda ve tarihe göre arayın.',
-    cash: 'Rezervasyon tahsilatlarını, aktif rezervasyonları ve tahsilat geçmişini görüntüleyin.',
+    cash: 'Rezervasyon ödemelerini ve aktif rezervasyon tahsilat durumunu görüntüleyin.',
     expenses: 'Masraf kayıtlarını ekleyin, düzenleyin ve dönemsel masraf istatistiklerini görün.',
     reports:
       'Gelir, masraf, doluluk ve oda performansını dönemsel filtrelerle analiz edin.',
@@ -193,13 +195,7 @@ export function AppShellPage() {
             )}
 
             {showSharedContent && activeTab === 'cash' && (
-              <CashPage
-                units={units}
-                reservations={reservations}
-                paymentRecords={paymentRecords}
-                paymentLoading={paymentLoading}
-                paymentError={paymentError}
-              />
+              <CashPage units={units} reservations={reservations} />
             )}
 
             {activeTab === 'expenses' && (

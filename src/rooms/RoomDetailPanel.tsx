@@ -7,6 +7,7 @@ import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestAction
 import { exportRoomReservationsExcel, exportRoomReservationsPdf } from '../customers/customerExports'
 import { findRoomReservations } from '../customers/customerListUtils'
 import { formatReservationDate } from '../reservations/reservationDisplay'
+import { getRemainingBalance } from '../reservations/depositCalculations'
 import {
   findActiveReservationForUnit,
   findLastGuestForUnit,
@@ -213,7 +214,7 @@ export function RoomDetailPanel({
               <WhatsAppGuestActions
                 phone={activeReservation.telefon}
                 adSoyad={activeReservation.ad_soyad}
-                kalanBakiye={activeReservation.kalan_bakiye}
+                kalanBakiye={getRemainingBalance(activeReservation)}
               />
             </div>
           </section>

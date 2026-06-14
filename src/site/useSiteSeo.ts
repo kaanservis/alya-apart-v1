@@ -31,7 +31,7 @@ export function useSiteSeo({
   title = 'ALYA APART',
   description = '',
   keywords = '',
-  path = '/site',
+  path = '/',
   image,
   noIndex = false,
 }: SiteSeoOptions = {}) {

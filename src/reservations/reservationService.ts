@@ -1,6 +1,5 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { AccommodationUnit, Reservation, ReservationStatus } from '../types/database'
-import { buildDepositPaymentPayload } from './depositCalculations'
 import { syncUnitStatuses } from '../workflow/workflowService'
 import { deriveReservationStatus, parseAmount } from './validation'
 import type { ReservationFormValues } from './types'
@@ -15,17 +14,11 @@ function assertSupabaseClient() {
 
 function buildReservationPayload(values: ReservationFormValues) {
   const toplamUcret = parseAmount(values.toplam_ucret)
-  const kapora = parseAmount(values.kapora)
-  const kaporaTahsil = parseAmount(values.kapora_tahsil)
-  const girisTeAlinan = parseAmount(values.giris_te_alinan)
   const gunlukUcret = parseAmount(values.gunluk_ucret)
+  const alinanTutar = parseAmount(values.alinan_tutar)
   const durum = deriveReservationStatus(values.cikis_tarihi)
-  const payment = buildDepositPaymentPayload({
-    toplam_ucret: Number.isNaN(toplamUcret) ? 0 : toplamUcret,
-    kapora: Number.isNaN(kapora) ? 0 : kapora,
-    kapora_tahsil: Number.isNaN(kaporaTahsil) ? 0 : kaporaTahsil,
-    giris_te_alinan: Number.isNaN(girisTeAlinan) ? 0 : girisTeAlinan,
-  })
+  const total = Number.isNaN(toplamUcret) ? 0 : toplamUcret
+  const collected = Number.isNaN(alinanTutar) ? 0 : alinanTutar
 
   return {
     ad_soyad: values.ad_soyad.trim(),
@@ -35,12 +28,8 @@ function buildReservationPayload(values: ReservationFormValues) {
     cikis_tarihi: values.cikis_tarihi,
     konaklama_birimi_id: values.konaklama_birimi_id,
     gunluk_ucret: gunlukUcret,
-    toplam_ucret: Number.isNaN(toplamUcret) ? 0 : toplamUcret,
-    kapora: payment.kapora,
-    kapora_tahsil: payment.kapora_tahsil,
-    giris_te_alinan: payment.giris_te_alinan,
-    cikista_alinacak: payment.cikista_alinacak,
-    alinan_ucret: payment.alinan_ucret,
+    toplam_ucret: total,
+    alinan_tutar: collected,
     notlar: values.notlar.trim() || null,
     durum: durum as ReservationStatus,
   }

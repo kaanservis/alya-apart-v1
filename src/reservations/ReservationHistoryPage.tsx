@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { Reservation } from '../types/database'
 import { formatReservationDate } from './reservationDisplay'
+import { getTotalCollected } from './depositCalculations'
 import {
   EMPTY_HISTORY_FILTERS,
   useReservationHistory,
@@ -193,7 +194,7 @@ function HistoryRow({
       <td className="px-4 py-3.5 font-medium text-slate-900">
         {formatCurrency(reservation.toplam_ucret)}
       </td>
-      <td className="px-4 py-3.5 text-slate-700">{formatCurrency(reservation.alinan_ucret)}</td>
+      <td className="px-4 py-3.5 text-slate-700">{formatCurrency(getTotalCollected(reservation))}</td>
       <td className="max-w-xs truncate px-4 py-3.5 text-slate-600">{reservation.notlar ?? '—'}</td>
     </tr>
   )

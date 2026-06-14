@@ -111,10 +111,7 @@ export function reservationToFormValues(reservation: {
   konaklama_birimi_id: string
   gunluk_ucret?: number
   toplam_ucret: number
-  kapora?: number
-  kapora_tahsil?: number
-  giris_te_alinan?: number
-  alinan_ucret: number
+  alinan_tutar: number
   notlar: string | null
 }): ReservationFormValues {
   const nights = calculateNights(reservation.giris_tarihi, reservation.cikis_tarihi)
@@ -122,13 +119,6 @@ export function reservationToFormValues(reservation: {
     reservation.gunluk_ucret != null && reservation.gunluk_ucret > 0
       ? reservation.gunluk_ucret
       : calculateDailyFromTotal(reservation.toplam_ucret, nights)
-
-  const kaporaTahsil =
-    reservation.kapora_tahsil != null
-      ? reservation.kapora_tahsil
-      : Math.max(0, reservation.alinan_ucret - (reservation.giris_te_alinan ?? 0))
-  const girisTeAlinan =
-    reservation.giris_te_alinan != null ? reservation.giris_te_alinan : reservation.alinan_ucret
 
   return {
     ad_soyad: reservation.ad_soyad,
@@ -139,9 +129,7 @@ export function reservationToFormValues(reservation: {
     konaklama_birimi_id: reservation.konaklama_birimi_id,
     gunluk_ucret: String(roundMoney(daily)),
     toplam_ucret: String(reservation.toplam_ucret),
-    kapora: String(reservation.kapora ?? 0),
-    kapora_tahsil: String(kaporaTahsil),
-    giris_te_alinan: String(girisTeAlinan),
+    alinan_tutar: String(reservation.alinan_tutar ?? 0),
     notlar: reservation.notlar ?? '',
   }
 }

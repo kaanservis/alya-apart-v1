@@ -26,7 +26,7 @@ INSERT INTO reservations (
   cikis_tarihi,
   konaklama_birimi_id,
   toplam_ucret,
-  alinan_ucret,
+  alinan_tutar,
   notlar,
   durum
 )
@@ -52,7 +52,7 @@ INSERT INTO reservations (
   cikis_tarihi,
   konaklama_birimi_id,
   toplam_ucret,
-  alinan_ucret,
+  alinan_tutar,
   notlar,
   durum
 )
@@ -78,7 +78,7 @@ INSERT INTO reservations (
   cikis_tarihi,
   konaklama_birimi_id,
   toplam_ucret,
-  alinan_ucret,
+  alinan_tutar,
   notlar,
   durum
 )
@@ -104,7 +104,7 @@ INSERT INTO reservations (
   cikis_tarihi,
   konaklama_birimi_id,
   toplam_ucret,
-  alinan_ucret,
+  alinan_tutar,
   notlar,
   durum
 )
@@ -130,7 +130,7 @@ INSERT INTO reservations (
   cikis_tarihi,
   konaklama_birimi_id,
   toplam_ucret,
-  alinan_ucret,
+  alinan_tutar,
   notlar,
   durum
 )
@@ -156,7 +156,7 @@ INSERT INTO reservations (
   cikis_tarihi,
   konaklama_birimi_id,
   toplam_ucret,
-  alinan_ucret,
+  alinan_tutar,
   notlar,
   durum
 )
@@ -182,7 +182,7 @@ INSERT INTO reservations (
   cikis_tarihi,
   konaklama_birimi_id,
   toplam_ucret,
-  alinan_ucret,
+  alinan_tutar,
   notlar,
   durum
 )

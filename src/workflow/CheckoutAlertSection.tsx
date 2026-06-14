@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { formatReservationDate } from '../reservations/reservationDisplay'
+import { getRemainingBalance } from '../reservations/depositCalculations'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
 import { getCheckoutPendingGuests } from './unitStatusLogic'
 import { completeCheckout } from './workflowService'
@@ -94,7 +95,7 @@ export function CheckoutAlertSection({
                   <WhatsAppGuestActions
                     phone={reservation.telefon}
                     adSoyad={reservation.ad_soyad}
-                    kalanBakiye={reservation.kalan_bakiye}
+                    kalanBakiye={getRemainingBalance(reservation)}
                   />
                 </div>
 

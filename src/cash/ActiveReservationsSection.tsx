@@ -11,7 +11,7 @@ export function ActiveReservationsSection({ rows }: ActiveReservationsSectionPro
       <div className="border-b border-slate-200 px-5 py-4">
         <h2 className="text-lg font-semibold text-slate-900">Aktif Rezervasyonlar</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Seçilen filtreye göre aktif rezervasyonların tahsilat durumu.
+          Seçilen filtreye göre aktif rezervasyonların ödeme durumu.
         </p>
       </div>
 

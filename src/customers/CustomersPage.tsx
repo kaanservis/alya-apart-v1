@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CustomerDetailPanel } from './CustomerDetailPanel'
 import { exportCustomerListExcel, exportCustomerListPdf } from './customerExports'
 import { formatReservationDate } from '../reservations/reservationDisplay'
+import { getRemainingBalance, getTotalCollected } from '../reservations/depositCalculations'
 import {
   EMPTY_CUSTOMER_FILTERS,
   type CustomerListRow,
@@ -87,11 +88,11 @@ function CustomerMobileCard({ row, selected, onSelect }: CustomerRowContentProps
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Ödenen Tutar</dt>
-          <dd className="font-semibold text-emerald-700">{formatCurrency(reservation.alinan_ucret)}</dd>
+          <dd className="font-semibold text-emerald-700">{formatCurrency(getTotalCollected(reservation))}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Kalan Bakiye</dt>
-          <dd className="font-semibold text-rose-700">{formatCurrency(reservation.kalan_bakiye)}</dd>
+          <dd className="font-semibold text-rose-700">{formatCurrency(getRemainingBalance(reservation))}</dd>
         </div>
       </dl>
     </button>
@@ -109,7 +110,6 @@ export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
     error,
     refetch,
     unitMap,
-    paymentsByReservation,
   } = useCustomersPage(refreshToken)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -311,10 +311,10 @@ export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
                           {formatCurrency(reservation.toplam_ucret)}
                         </td>
                         <td className="px-4 py-3.5 text-emerald-700">
-                          {formatCurrency(reservation.alinan_ucret)}
+                          {formatCurrency(getTotalCollected(reservation))}
                         </td>
                         <td className="px-4 py-3.5 font-medium text-rose-700">
-                          {formatCurrency(reservation.kalan_bakiye)}
+                          {formatCurrency(getRemainingBalance(reservation))}
                         </td>
                         <td className="px-4 py-3.5">
                           <StatusBadge status={reservation.durum} />
@@ -335,7 +335,6 @@ export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
           unitName={unitMap.get(selectedReservation.konaklama_birimi_id) ?? '—'}
           units={units}
           reservations={reservations}
-          paymentRecords={paymentsByReservation.get(selectedReservation.id) ?? []}
           onClose={() => setSelectedId(null)}
           onUpdated={handleUpdated}
           unitMap={unitMap}

@@ -26,6 +26,7 @@ export function useCalendarData(seasonYear: number) {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
     async function loadCalendarData() {
@@ -69,7 +70,13 @@ export function useCalendarData(seasonYear: number) {
     }
 
     void loadCalendarData()
-  }, [seasonYear])
+  }, [seasonYear, reloadToken])
 
-  return { units, reservations, loading, error }
+  return {
+    units,
+    reservations,
+    loading,
+    error,
+    reload: () => setReloadToken((current) => current + 1),
+  }
 }

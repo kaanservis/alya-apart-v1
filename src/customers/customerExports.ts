@@ -1,4 +1,5 @@
 import type { Reservation } from '../types/database'
+import { getRemainingBalance, getTotalCollected } from '../reservations/depositCalculations'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import {
   exportRowsToExcel,
@@ -29,8 +30,8 @@ function toExportRows(rows: CustomerListRow[]): ExportRow[] {
     giris: formatReservationDate(reservation.giris_tarihi),
     cikis: formatReservationDate(reservation.cikis_tarihi),
     toplam: formatMoneyExport(reservation.toplam_ucret),
-    odenen: formatMoneyExport(reservation.alinan_ucret),
-    kalan: formatMoneyExport(reservation.kalan_bakiye),
+    odenen: formatMoneyExport(getTotalCollected(reservation)),
+    kalan: formatMoneyExport(getRemainingBalance(reservation)),
     durum: reservation.durum,
   }))
 }
@@ -67,8 +68,8 @@ export function exportRoomReservationsExcel(
     giris: formatReservationDate(reservation.giris_tarihi),
     cikis: formatReservationDate(reservation.cikis_tarihi),
     toplam: formatMoneyExport(reservation.toplam_ucret),
-    odenen: formatMoneyExport(reservation.alinan_ucret),
-    kalan: formatMoneyExport(reservation.kalan_bakiye),
+    odenen: formatMoneyExport(getTotalCollected(reservation)),
+    kalan: formatMoneyExport(getRemainingBalance(reservation)),
     durum: reservation.durum,
   }))
 
@@ -91,8 +92,8 @@ export function exportRoomReservationsPdf(roomName: string, reservations: Reserv
     giris: formatReservationDate(reservation.giris_tarihi),
     cikis: formatReservationDate(reservation.cikis_tarihi),
     toplam: formatMoneyExport(reservation.toplam_ucret),
-    odenen: formatMoneyExport(reservation.alinan_ucret),
-    kalan: formatMoneyExport(reservation.kalan_bakiye),
+    odenen: formatMoneyExport(getTotalCollected(reservation)),
+    kalan: formatMoneyExport(getRemainingBalance(reservation)),
     durum: reservation.durum,
   }))
 

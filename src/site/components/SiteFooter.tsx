@@ -1,3 +1,4 @@
+import { ADMIN_ENTRY_PATH } from '../../app/appSection'
 import { scrollToSection } from '../siteConfig'
 import { getSiteHomePath } from '../siteRouter'
 import { useSiteContent } from '../SiteContentContext'
@@ -40,13 +41,16 @@ export function SiteFooter({ privatePage = false }: SiteFooterProps) {
           >
             İletişim
           </button>
-          <a href="/admin" className="text-sm font-medium hover:text-white">
-            Yönetim
-          </a>
         </div>
       </div>
       <div className="border-t border-slate-800 px-4 py-4 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} {settings.site_title}. Tüm hakları saklıdır.
+        <p>© {new Date().getFullYear()} {settings.site_title}. Tüm hakları saklıdır.</p>
+        <a
+          href={ADMIN_ENTRY_PATH}
+          className="mt-2 inline-block text-[11px] text-slate-600 transition hover:text-slate-400"
+        >
+          Yönetim Girişi
+        </a>
       </div>
     </footer>
   )

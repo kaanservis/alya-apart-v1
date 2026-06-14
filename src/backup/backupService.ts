@@ -4,12 +4,7 @@ import {
   getDefaultDisplayOrderForUnitName,
   sortAccommodationUnitsByDisplayOrder,
 } from '../lib/unitOrder'
-import type {
-  AccommodationUnit,
-  Expense,
-  PaymentRecord,
-  Reservation,
-} from '../types/database'
+import type { AccommodationUnit, Expense, Reservation } from '../types/database'
 import { getTurkeyDateKey } from '../lib/turkeyDate'
 import { syncUnitStatuses } from '../workflow/workflowService'
 import { buildBackupFileName } from './backupFileName'
@@ -43,10 +38,9 @@ function downloadTextFile(fileName: string, content: string, mimeType: string) {
 export async function fetchBackupPayload(): Promise<BackupPayload> {
   const client = assertSupabaseClient()
 
-  const [roomsResult, reservationsResult, paymentsResult, expensesResult] = await Promise.all([
+  const [roomsResult, reservationsResult, expensesResult] = await Promise.all([
     client.from('accommodation_units').select('*').order(ACCOMMODATION_UNITS_ORDER_COLUMN, { ascending: true }),
     client.from('reservations').select('*').order('giris_tarihi', { ascending: false }),
-    client.from('payment_records').select('*').order('payment_date', { ascending: false }),
     client.from('expenses').select('*').order('tarih', { ascending: false }),
   ])
 
@@ -58,10 +52,6 @@ export async function fetchBackupPayload(): Promise<BackupPayload> {
     throw new Error(reservationsResult.error.message)
   }
 
-  if (paymentsResult.error) {
-    throw new Error(paymentsResult.error.message)
-  }
-
   if (expensesResult.error) {
     throw new Error(expensesResult.error.message)
   }
@@ -71,7 +61,6 @@ export async function fetchBackupPayload(): Promise<BackupPayload> {
     exportedAt: new Date().toISOString(),
     rooms: sortAccommodationUnitsByDisplayOrder((roomsResult.data ?? []) as AccommodationUnit[]),
     reservations: (reservationsResult.data ?? []) as Reservation[],
-    paymentRecords: (paymentsResult.data ?? []) as PaymentRecord[],
     expenses: (expensesResult.data ?? []) as Expense[],
   }
 }
@@ -87,11 +76,7 @@ function reservationToInsert(reservation: Reservation) {
     konaklama_birimi_id: reservation.konaklama_birimi_id,
     gunluk_ucret: reservation.gunluk_ucret,
     toplam_ucret: reservation.toplam_ucret,
-    kapora: reservation.kapora,
-    kapora_tahsil: reservation.kapora_tahsil,
-    giris_te_alinan: reservation.giris_te_alinan,
-    cikista_alinacak: reservation.cikista_alinacak,
-    alinan_ucret: reservation.alinan_ucret,
+    alinan_tutar: reservation.alinan_tutar,
     notlar: reservation.notlar,
     durum: reservation.durum,
     created_at: reservation.created_at,
@@ -124,11 +109,7 @@ function buildExcelBackupContent(payload: BackupPayload) {
       'konaklama_birimi_id',
       'gunluk_ucret',
       'toplam_ucret',
-      'kapora',
-      'kapora_tahsil',
-      'giris_te_alinan',
-      'cikista_alinacak',
-      'alinan_ucret',
+      'alinan_tutar',
       'notlar',
       'durum',
     ],
@@ -142,26 +123,9 @@ function buildExcelBackupContent(payload: BackupPayload) {
       reservation.konaklama_birimi_id,
       String(reservation.gunluk_ucret),
       String(reservation.toplam_ucret),
-      String(reservation.kapora),
-      String(reservation.kapora_tahsil),
-      String(reservation.giris_te_alinan),
-      String(reservation.cikista_alinacak),
-      String(reservation.alinan_ucret),
+      String(reservation.alinan_tutar),
       reservation.notlar ?? '',
       reservation.durum,
-    ]),
-  )
-
-  addSection(
-    'TAHSILATLAR',
-    ['id', 'reservation_id', 'amount', 'payment_date', 'note', 'created_at'],
-    payload.paymentRecords.map((payment) => [
-      payment.id,
-      payment.reservation_id,
-      String(payment.amount),
-      payment.payment_date,
-      payment.note ?? '',
-      payment.created_at,
     ]),
   )
 
@@ -225,7 +189,9 @@ export async function exportExcelBackup() {
 }
 
 export function parseBackupJson(content: string): BackupPayload {
-  const parsed = JSON.parse(content) as Partial<BackupPayload>
+  const parsed = JSON.parse(content) as Partial<BackupPayload> & {
+    paymentRecords?: unknown[]
+  }
 
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('Geçersiz yedek dosyası.')
@@ -240,7 +206,6 @@ export function parseBackupJson(content: string): BackupPayload {
     exportedAt: parsed.exportedAt ?? '',
     rooms: parsed.rooms as AccommodationUnit[],
     reservations: parsed.reservations as Reservation[],
-    paymentRecords: (parsed.paymentRecords ?? []) as PaymentRecord[],
     expenses: (parsed.expenses ?? []) as Expense[],
   }
 }
@@ -249,7 +214,6 @@ export function buildBackupPreview(payload: BackupPayload): BackupPreview {
   return {
     roomCount: payload.rooms.length,
     reservationCount: payload.reservations.length,
-    paymentCount: payload.paymentRecords.length,
     expenseCount: payload.expenses.length,
     exportedAt: payload.exportedAt || null,
   }
@@ -310,47 +274,24 @@ async function upsertRooms(client: ReturnType<typeof assertSupabaseClient>, room
   }
 }
 
-async function restoreReservationWithPayments(
+async function restoreReservation(
   client: ReturnType<typeof assertSupabaseClient>,
   reservation: Reservation,
-  payments: PaymentRecord[],
 ) {
-  const insertResult = await client
-    .from('reservations')
-    .insert(reservationToInsert(reservation) as never)
+  const legacyReservation = reservation as Reservation & {
+    alinan_ucret?: number
+  }
+
+  const insertResult = await client.from('reservations').insert({
+    ...reservationToInsert(reservation),
+    alinan_tutar:
+      reservation.alinan_tutar ??
+      legacyReservation.alinan_ucret ??
+      0,
+  } as never)
 
   if (insertResult.error) {
     throw new Error(insertResult.error.message)
-  }
-
-  const cleanupPayments = await client
-    .from('payment_records')
-    .delete()
-    .eq('reservation_id', reservation.id)
-
-  if (cleanupPayments.error) {
-    throw new Error(cleanupPayments.error.message)
-  }
-
-  const reservationPayments = payments.filter((payment) => payment.reservation_id === reservation.id)
-
-  if (reservationPayments.length === 0) {
-    return
-  }
-
-  const paymentInsert = await client.from('payment_records').insert(
-    reservationPayments.map((payment) => ({
-      id: payment.id,
-      reservation_id: payment.reservation_id,
-      amount: payment.amount,
-      payment_date: payment.payment_date,
-      note: payment.note,
-      created_at: payment.created_at,
-    })) as never,
-  )
-
-  if (paymentInsert.error) {
-    throw new Error(paymentInsert.error.message)
   }
 }
 
@@ -383,7 +324,7 @@ export async function restoreBackup(payload: BackupPayload, mode: RestoreMode) {
     await upsertRooms(client, payload.rooms)
 
     for (const reservation of payload.reservations) {
-      await restoreReservationWithPayments(client, reservation, payload.paymentRecords)
+      await restoreReservation(client, reservation)
     }
 
     await insertExpenses(client, payload.expenses)
@@ -424,7 +365,7 @@ export async function restoreBackup(payload: BackupPayload, mode: RestoreMode) {
         continue
       }
 
-      await restoreReservationWithPayments(client, reservation, payload.paymentRecords)
+      await restoreReservation(client, reservation)
     }
 
     for (const expense of payload.expenses) {

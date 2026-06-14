@@ -15,7 +15,7 @@ export function getPrivateRoomShareSlug(unitName: string) {
 }
 
 export function getPrivateRoomSharePath(unitName: string) {
-  return `/site/r/${getPrivateRoomShareSlug(unitName)}`
+  return `/r/${getPrivateRoomShareSlug(unitName)}`
 }
 
 export function buildPrivateRoomShareUrl(unitName: string) {

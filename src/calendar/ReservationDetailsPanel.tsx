@@ -1,6 +1,7 @@
 import { formatTurkeyDateKey } from '../lib/turkeyDate'
 import { PaymentBreakdown } from '../components/PaymentBreakdown'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
+import { getRemainingBalance } from '../reservations/depositCalculations'
 import type { ReservationSelection } from './types'
 
 interface ReservationDetailsPanelProps {
@@ -21,7 +22,7 @@ export function ReservationDetailsPanel({ selection, onClose }: ReservationDetai
         role="dialog"
         aria-modal="true"
         aria-labelledby="reservation-details-title"
-        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -78,14 +79,9 @@ export function ReservationDetailsPanel({ selection, onClose }: ReservationDetai
           <WhatsAppGuestActions
             phone={reservation.telefon}
             adSoyad={reservation.ad_soyad}
-            kalanBakiye={reservation.kalan_bakiye}
+            kalanBakiye={getRemainingBalance(reservation)}
           />
         </section>
-
-        <p className="mt-4 text-sm text-slate-500">
-          Düzenleme formu sonraki fazda eklenecek. Bu panel yalnızca detay görüntüleme altyapısını
-          sağlar.
-        </p>
 
         <div className="mt-6 flex justify-end">
           <button

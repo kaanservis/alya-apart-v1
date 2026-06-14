@@ -1,5 +1,7 @@
 export type AppSection = 'site' | 'admin'
 
+export const ADMIN_ENTRY_PATH = '/admin#/dashboard'
+
 const ADMIN_TAB_PATHS = [
   'dashboard',
   'calendar',
@@ -14,10 +16,30 @@ const ADMIN_TAB_PATHS = [
   'backup',
 ]
 
-export function bootstrapAppRoute() {
-  const { pathname, hash } = window.location
+function normalizePathname(pathname: string) {
+  return pathname.replace(/\/+$/, '') || '/'
+}
 
-  if (pathname.startsWith('/site') || pathname.startsWith('/admin')) {
+export function bootstrapAppRoute() {
+  const pathname = normalizePathname(window.location.pathname)
+  const { hash } = window.location
+
+  if (pathname === '/site') {
+    window.history.replaceState({}, '', '/')
+    return
+  }
+
+  const legacyRoomMatch = window.location.pathname.match(/^\/site\/r\/([^/]+)\/?$/)
+  if (legacyRoomMatch) {
+    window.history.replaceState({}, '', `/r/${legacyRoomMatch[1]}`)
+    return
+  }
+
+  if (pathname.startsWith('/admin')) {
+    const hashPath = hash.replace(/^#\/?/, '').split('?')[0]
+    if (!hashPath) {
+      window.history.replaceState({}, '', ADMIN_ENTRY_PATH)
+    }
     return
   }
 
@@ -28,14 +50,14 @@ export function bootstrapAppRoute() {
   }
 
   const hashPath = hash.replace(/^#\/?/, '').split('?')[0]
-
-  if (hashPath && ADMIN_TAB_PATHS.some((tab) => hashPath.startsWith(tab))) {
+  if (
+    hashPath &&
+    ADMIN_TAB_PATHS.some((tab) => hashPath.startsWith(tab)) &&
+    !pathname.startsWith('/admin')
+  ) {
     const normalizedHash = hash.startsWith('#') ? hash : `#/${hashPath}`
     window.history.replaceState({}, '', `/admin${normalizedHash}`)
-    return
   }
-
-  window.history.replaceState({}, '', '/site')
 }
 
 export function readAppSection(): AppSection {
@@ -50,6 +72,12 @@ export function readAppSection(): AppSection {
 
 export function ensureAdminPath() {
   if (!window.location.pathname.startsWith('/admin')) {
-    window.history.replaceState({}, '', '/admin')
+    window.history.replaceState({}, '', ADMIN_ENTRY_PATH)
+    return
+  }
+
+  const hashPath = window.location.hash.replace(/^#\/?/, '').split('?')[0]
+  if (!hashPath) {
+    window.history.replaceState({}, '', ADMIN_ENTRY_PATH)
   }
 }
