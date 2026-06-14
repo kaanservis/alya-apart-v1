@@ -4,6 +4,12 @@ import type { GuestEntryWithPhotos } from './guestTypes'
 
 const GUEST_PHOTOS_BUCKET = 'guest-photos'
 
+const GUEST_PHOTO_STORAGE_FILES: Record<GuestPhotoType, string> = {
+  front_id: 'front.jpg',
+  back_id: 'back.jpg',
+  guest_photo: 'photo.jpg',
+}
+
 function assertSupabaseClient() {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error('Supabase bağlantısı yapılandırılmadı.')
@@ -21,12 +27,45 @@ export function getGuestPhotoPublicUrl(storagePath: string) {
     return storagePath
   }
 
+  const normalizedPath = storagePath.startsWith(`${GUEST_PHOTOS_BUCKET}/`)
+    ? storagePath.slice(GUEST_PHOTOS_BUCKET.length + 1)
+    : storagePath
+
   if (!isSupabaseConfigured || !supabase) {
-    return storagePath
+    return normalizedPath
   }
 
-  const { data } = supabase.storage.from(GUEST_PHOTOS_BUCKET).getPublicUrl(storagePath)
+  const { data } = supabase.storage.from(GUEST_PHOTOS_BUCKET).getPublicUrl(normalizedPath)
   return data.publicUrl
+}
+
+export function buildGuestPhotoStoragePath(
+  reservationId: string,
+  guestEntryId: string,
+  photoType: GuestPhotoType,
+) {
+  return `${reservationId}/${guestEntryId}/${GUEST_PHOTO_STORAGE_FILES[photoType]}`
+}
+
+export const GUEST_PHOTO_UPLOAD_FAILED_MESSAGE =
+  'Fotoğraf yüklenemedi. Depolama izinleri kontrol edilmeli.'
+
+export function getGuestPhotoUploadErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message === GUEST_PHOTO_UPLOAD_FAILED_MESSAGE) {
+      return error.message
+    }
+
+    if (error.message.startsWith('Geçersiz dosya') || error.message.includes('Dosya boyutu')) {
+      return error.message
+    }
+  }
+
+  return GUEST_PHOTO_UPLOAD_FAILED_MESSAGE
+}
+
+function throwGuestPhotoUploadFailed(): never {
+  throw new Error(GUEST_PHOTO_UPLOAD_FAILED_MESSAGE)
 }
 
 function mapGuestWithPhotos(
@@ -298,9 +337,7 @@ export async function uploadGuestPhoto(
   file: File,
 ): Promise<GuestPhoto> {
   const client = assertSupabaseClient()
-
-  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-  const storagePath = `${reservationId}/${guestEntryId}/${photoType}-${Date.now()}.${extension}`
+  const storagePath = buildGuestPhotoStoragePath(reservationId, guestEntryId, photoType)
 
   const { data: existingPhotos, error: existingError } = await client
     .from('guest_photos')
@@ -310,12 +347,12 @@ export async function uploadGuestPhoto(
     .maybeSingle()
 
   if (existingError) {
-    throw new Error(existingError.message)
+    throwGuestPhotoUploadFailed()
   }
 
   const existing = existingPhotos as GuestPhoto | null
 
-  if (existing?.photo_url) {
+  if (existing?.photo_url && existing.photo_url !== storagePath) {
     await client.storage.from(GUEST_PHOTOS_BUCKET).remove([existing.photo_url])
   }
 
@@ -326,7 +363,7 @@ export async function uploadGuestPhoto(
   })
 
   if (uploadResult.error) {
-    throw new Error(uploadResult.error.message)
+    throwGuestPhotoUploadFailed()
   }
 
   if (existing) {
@@ -335,13 +372,13 @@ export async function uploadGuestPhoto(
       .update({ photo_url: storagePath } as never)
       .eq('id', existing.id)
       .select('*')
-      .single()
+      .maybeSingle()
 
     if (error) {
-      throw new Error(error.message)
+      throwGuestPhotoUploadFailed()
     }
 
-    return data as GuestPhoto
+    return (data ?? { ...existing, photo_url: storagePath }) as GuestPhoto
   }
 
   const { data, error } = await client
@@ -352,14 +389,24 @@ export async function uploadGuestPhoto(
       photo_url: storagePath,
     } as never)
     .select('*')
-    .single()
+    .maybeSingle()
 
   if (error) {
     await client.storage.from(GUEST_PHOTOS_BUCKET).remove([storagePath])
-    throw new Error(error.message)
+    throwGuestPhotoUploadFailed()
   }
 
-  return data as GuestPhoto
+  if (data) {
+    return data as GuestPhoto
+  }
+
+  return {
+    id: guestEntryId,
+    guest_entry_id: guestEntryId,
+    photo_type: photoType,
+    photo_url: storagePath,
+    created_at: new Date().toISOString(),
+  } as GuestPhoto
 }
 
 export function buildGuestExportFields(

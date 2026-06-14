@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import {
   ACCOMMODATION_UNITS_ORDER_COLUMN,
@@ -29,6 +29,7 @@ export function useWorkflowData(seasonYear: number) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
+  const hasLoadedOnceRef = useRef(false)
 
   const refetch = useCallback(() => {
     setRefreshToken((current) => current + 1)
@@ -36,7 +37,9 @@ export function useWorkflowData(seasonYear: number) {
 
   useEffect(() => {
     async function loadWorkflowData() {
-      setLoading(true)
+      if (!hasLoadedOnceRef.current) {
+        setLoading(true)
+      }
 
       if (!isSupabaseConfigured || !supabase) {
         setUnits(createPlaceholderUnits())
@@ -89,6 +92,7 @@ export function useWorkflowData(seasonYear: number) {
         setError(syncError instanceof Error ? syncError.message : 'Oda durumları senkronize edilemedi.')
       } finally {
         setLoading(false)
+        hasLoadedOnceRef.current = true
       }
     }
 

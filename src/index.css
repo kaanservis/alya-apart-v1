@@ -15,3 +15,89 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Workflow room cards — full container tint by status */
+.workflow-room-card {
+  border-width: 3px;
+  border-style: solid;
+  color: #000000;
+}
+
+.room-empty {
+  background-color: #d6ecff;
+  border-color: #2196f3;
+}
+
+.room-occupied {
+  background-color: #e9d5ff;
+  border-color: #8b5cf6;
+}
+
+.room-checkout {
+  background-color: #ffe0b2;
+  border-color: #fb8c00;
+}
+
+.room-cleaning {
+  background-color: #fff59d;
+  border-color: #fbc02d;
+}
+
+.room-status-badge {
+  display: inline-flex;
+  shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  border-width: 2px;
+  border-style: solid;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.room-status-badge-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.room-badge-empty {
+  background-color: #1976d2;
+  border-color: #1976d2;
+  color: #ffffff;
+}
+
+.room-badge-occupied {
+  background-color: #7c3aed;
+  border-color: #7c3aed;
+  color: #ffffff;
+}
+
+.room-badge-checkout {
+  background-color: #ef6c00;
+  border-color: #ef6c00;
+  color: #ffffff;
+}
+
+.room-badge-cleaning {
+  background-color: #f9a825;
+  border-color: #f9a825;
+  color: #000000;
+}
+
+.workflow-room-card .workflow-room-panel {
+  border: 1px solid rgb(0 0 0 / 0.12);
+  background-color: rgb(255 255 255 / 0.35);
+  color: #000000;
+}
+
+.workflow-room-card .workflow-room-text {
+  color: #000000;
+}
+
+.workflow-room-card .workflow-room-text-muted {
+  color: rgb(0 0 0 / 0.72);
+}

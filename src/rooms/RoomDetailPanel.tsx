@@ -105,6 +105,21 @@ export function RoomDetailPanel({
   const displayedReservation = activeReservationState ?? activeReservation
   const checkoutId = checkoutReservationId ?? displayedReservation?.id
 
+  function handleGuestCountChange(kisiSayisi: number) {
+    if (!displayedReservation) {
+      return
+    }
+
+    setActiveReservationState((current) => {
+      const base = current ?? displayedReservation
+      if (!base) {
+        return current
+      }
+
+      return { ...base, kisi_sayisi: kisiSayisi }
+    })
+  }
+
   async function handleCompleteCheckout() {
     if (!checkoutId) {
       return
@@ -223,7 +238,10 @@ export function RoomDetailPanel({
               />
             </div>
             <div className="mt-5 border-t border-purple-100 pt-5">
-              <RoomGuestsSection reservation={displayedReservation} onUpdated={onUpdated} />
+              <RoomGuestsSection
+                reservation={displayedReservation}
+                onGuestCountChange={handleGuestCountChange}
+              />
             </div>
           </section>
         ) : unitStatus === 'Temizlik Bekliyor' ? (

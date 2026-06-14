@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GuestPhoto, Reservation } from '../types/database'
 import {
   computeTotalGuestCount,
@@ -6,17 +6,15 @@ import {
   deleteGuestEntry,
   deleteGuestPhoto,
   fetchGuestEntriesForReservation,
-  getGuestPhotoPublicUrl,
   isGuestReservationOwner,
   updateGuestEntry,
 } from './guestService'
 import type { GuestEntryWithPhotos } from './guestTypes'
-import { GUEST_PHOTO_LABELS } from './guestTypes'
 import { GuestPhotoUpload } from './GuestPhotoUpload'
 
 interface RoomGuestsSectionProps {
   reservation: Reservation
-  onUpdated?: () => void
+  onGuestCountChange?: (kisiSayisi: number) => void
 }
 
 interface GuestFormState {
@@ -33,6 +31,8 @@ const EMPTY_FORM: GuestFormState = {
   notes: '',
 }
 
+const GUEST_SAVE_SUCCESS_MESSAGE = 'Misafir başarıyla kaydedildi.'
+
 function guestToForm(guest: GuestEntryWithPhotos): GuestFormState {
   return {
     fullName: guest.full_name,
@@ -42,18 +42,20 @@ function guestToForm(guest: GuestEntryWithPhotos): GuestFormState {
   }
 }
 
-export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionProps) {
+export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuestsSectionProps) {
   const [guests, setGuests] = useState<GuestEntryWithPhotos[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<GuestFormState>(EMPTY_FORM)
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<GuestFormState>(EMPTY_FORM)
   const [deleteConfirmGuestId, setDeleteConfirmGuestId] = useState<string | null>(null)
-  const [deletePhotoId, setDeletePhotoId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [highlightGuestId, setHighlightGuestId] = useState<string | null>(null)
+  const fullNameInputRef = useRef<HTMLInputElement>(null)
 
   const totalGuestCount = useMemo(() => computeTotalGuestCount(guests.length), [guests.length])
 
@@ -64,21 +66,42 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
     try {
       const entries = await fetchGuestEntriesForReservation(reservation.id)
       setGuests(entries)
+      onGuestCountChange?.(computeTotalGuestCount(entries.length))
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Misafir kayıtları yüklenemedi.')
     } finally {
       setLoading(false)
     }
-  }, [reservation.id])
+  }, [onGuestCountChange, reservation.id])
 
   useEffect(() => {
     void loadGuests()
   }, [loadGuests])
 
-  async function handleMutationComplete() {
-    await loadGuests()
-    onUpdated?.()
-  }
+  useEffect(() => {
+    if (!success) {
+      return
+    }
+
+    const timer = window.setTimeout(() => setSuccess(null), 4000)
+    return () => window.clearTimeout(timer)
+  }, [success])
+
+  useEffect(() => {
+    if (!highlightGuestId) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      document.getElementById(`guest-entry-${highlightGuestId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+      setHighlightGuestId(null)
+    }, 100)
+
+    return () => window.clearTimeout(timer)
+  }, [highlightGuestId, guests])
 
   async function handleSaveGuest(event: React.FormEvent) {
     event.preventDefault()
@@ -90,18 +113,24 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
 
     setSaving(true)
     setError(null)
+    setSuccess(null)
 
     try {
-      await createGuestEntry({
+      const newGuest = await createGuestEntry({
         reservationId: reservation.id,
         fullName: form.fullName,
         tcNo: form.tcNo,
         phone: form.phone,
         notes: form.notes,
       })
+
+      setGuests((current) => [...current, newGuest])
+      onGuestCountChange?.(computeTotalGuestCount(guests.length + 1))
       setForm(EMPTY_FORM)
-      setShowForm(false)
-      await handleMutationComplete()
+      setShowForm(true)
+      setSuccess(GUEST_SAVE_SUCCESS_MESSAGE)
+      setHighlightGuestId(newGuest.id)
+      fullNameInputRef.current?.focus()
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Misafir kaydedilemedi.')
     } finally {
@@ -121,16 +150,23 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
     setError(null)
 
     try {
-      await updateGuestEntry({
+      const updatedGuest = await updateGuestEntry({
         guestEntryId: guestId,
         fullName: editForm.fullName,
         tcNo: editForm.tcNo,
         phone: editForm.phone,
         notes: editForm.notes,
       })
+      setGuests((current) =>
+        current.map((guest) =>
+          guest.id === guestId
+            ? { ...guest, ...updatedGuest, photos: guest.photos }
+            : guest,
+        ),
+      )
       setEditingGuestId(null)
       setEditForm(EMPTY_FORM)
-      await handleMutationComplete()
+      setSuccess('Misafir bilgileri güncellendi.')
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Misafir güncellenemedi.')
     } finally {
@@ -155,8 +191,12 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
 
     try {
       await deleteGuestEntry(guestId, reservation.id)
+      setGuests((current) => {
+        const nextGuests = current.filter((guest) => guest.id !== guestId)
+        onGuestCountChange?.(computeTotalGuestCount(nextGuests.length))
+        return nextGuests
+      })
       setDeleteConfirmGuestId(null)
-      await handleMutationComplete()
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Misafir silinemedi.')
     } finally {
@@ -166,25 +206,51 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
 
   async function handleConfirmDeletePhoto(photo: GuestPhoto) {
     setDeleting(true)
-    setError(null)
 
     try {
       await deleteGuestPhoto(photo.id, photo.photo_url)
-      setDeletePhotoId(null)
-      await loadGuests()
-    } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Fotoğraf silinemedi.')
+      setGuests((current) =>
+        current.map((guest) =>
+          guest.id === photo.guest_entry_id
+            ? {
+                ...guest,
+                photos: guest.photos.filter((item) => item.id !== photo.id),
+              }
+            : guest,
+        ),
+      )
+      setError(null)
+    } catch {
+      setError('Fotoğraf silinemedi. Lütfen tekrar deneyin.')
+      throw new Error('Fotoğraf silinemedi.')
     } finally {
       setDeleting(false)
     }
+  }
+
+  function handlePhotoUploaded(uploadedPhoto: GuestPhoto) {
+    setGuests((current) =>
+      current.map((guest) =>
+        guest.id === uploadedPhoto.guest_entry_id
+          ? {
+              ...guest,
+              photos: [
+                ...guest.photos.filter((photo) => photo.photo_type !== uploadedPhoto.photo_type),
+                uploadedPhoto,
+              ],
+            }
+          : guest,
+      ),
+    )
+    setError(null)
   }
 
   function startEditing(guest: GuestEntryWithPhotos) {
     setEditingGuestId(guest.id)
     setEditForm(guestToForm(guest))
     setDeleteConfirmGuestId(null)
-    setDeletePhotoId(null)
     setError(null)
+    setSuccess(null)
   }
 
   return (
@@ -202,6 +268,12 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
         </div>
       </dl>
 
+      {success && (
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {success}
+        </div>
+      )}
+
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
@@ -217,7 +289,8 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
           {guests.map((guest, index) => (
             <li
               key={guest.id}
-              className="rounded-xl border border-indigo-100 bg-white px-4 py-4"
+              id={`guest-entry-${guest.id}`}
+              className="scroll-mt-24 rounded-xl border border-indigo-100 bg-white px-4 py-4"
             >
               {editingGuestId === guest.id ? (
                 <form
@@ -320,108 +393,37 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
                     </div>
                   )}
 
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-3">
                     <GuestPhotoUpload
                       guestEntryId={guest.id}
                       reservationId={reservation.id}
                       photoType="front_id"
-                      label="Kimlik Ön Yüz Çek"
                       capture
-                      existingUrl={
-                        guest.photos.find((photo) => photo.photo_type === 'front_id')
-                          ? getGuestPhotoPublicUrl(
-                              guest.photos.find((photo) => photo.photo_type === 'front_id')!
-                                .photo_url,
-                            )
-                          : undefined
-                      }
-                      onUploaded={loadGuests}
+                      existingPhoto={guest.photos.find((photo) => photo.photo_type === 'front_id') ?? null}
+                      onUploaded={handlePhotoUploaded}
+                      onDelete={handleConfirmDeletePhoto}
+                      deleting={deleting}
                     />
                     <GuestPhotoUpload
                       guestEntryId={guest.id}
                       reservationId={reservation.id}
                       photoType="back_id"
-                      label="Kimlik Arka Yüz Çek"
                       capture
-                      existingUrl={
-                        guest.photos.find((photo) => photo.photo_type === 'back_id')
-                          ? getGuestPhotoPublicUrl(
-                              guest.photos.find((photo) => photo.photo_type === 'back_id')!
-                                .photo_url,
-                            )
-                          : undefined
-                      }
-                      onUploaded={loadGuests}
+                      existingPhoto={guest.photos.find((photo) => photo.photo_type === 'back_id') ?? null}
+                      onUploaded={handlePhotoUploaded}
+                      onDelete={handleConfirmDeletePhoto}
+                      deleting={deleting}
                     />
                     <GuestPhotoUpload
                       guestEntryId={guest.id}
                       reservationId={reservation.id}
                       photoType="guest_photo"
-                      label="Fotoğraf Yükle"
-                      existingUrl={
-                        guest.photos.find((photo) => photo.photo_type === 'guest_photo')
-                          ? getGuestPhotoPublicUrl(
-                              guest.photos.find((photo) => photo.photo_type === 'guest_photo')!
-                                .photo_url,
-                            )
-                          : undefined
-                      }
-                      onUploaded={loadGuests}
+                      existingPhoto={guest.photos.find((photo) => photo.photo_type === 'guest_photo') ?? null}
+                      onUploaded={handlePhotoUploaded}
+                      onDelete={handleConfirmDeletePhoto}
+                      deleting={deleting}
                     />
                   </div>
-
-                  {guest.photos.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-3">
-                      {guest.photos.map((photo) => (
-                        <div key={photo.id} className="flex flex-col gap-1">
-                          <a
-                            href={getGuestPhotoPublicUrl(photo.photo_url)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block overflow-hidden rounded-lg border border-slate-200"
-                            title={GUEST_PHOTO_LABELS[photo.photo_type]}
-                          >
-                            <img
-                              src={getGuestPhotoPublicUrl(photo.photo_url)}
-                              alt={`${guest.full_name} - ${GUEST_PHOTO_LABELS[photo.photo_type]}`}
-                              className="h-16 w-16 object-cover"
-                            />
-                          </a>
-                          {deletePhotoId === photo.id ? (
-                            <div className="rounded-lg border border-red-200 bg-red-50 p-2">
-                              <p className="text-xs text-red-800">Fotoğraf silinsin mi?</p>
-                              <div className="mt-2 flex flex-wrap gap-1">
-                                <button
-                                  type="button"
-                                  disabled={deleting}
-                                  onClick={() => void handleConfirmDeletePhoto(photo)}
-                                  className="rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-60"
-                                >
-                                  Evet Sil
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={deleting}
-                                  onClick={() => setDeletePhotoId(null)}
-                                  className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-                                >
-                                  Vazgeç
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setDeletePhotoId(photo.id)}
-                              className="text-xs font-semibold text-red-700 hover:underline"
-                            >
-                              Fotoğraf Sil
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </>
               )}
             </li>
@@ -436,6 +438,7 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
             setShowForm(true)
             setEditingGuestId(null)
             setDeleteConfirmGuestId(null)
+            setSuccess(null)
           }}
           className="mt-4 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
         >
@@ -446,7 +449,11 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
           onSubmit={handleSaveGuest}
           className="mt-4 space-y-3 rounded-xl border border-indigo-100 bg-white p-4"
         >
-          <GuestFormFields form={form} onChange={setForm} />
+          <GuestFormFields
+            form={form}
+            onChange={setForm}
+            fullNameInputRef={fullNameInputRef}
+          />
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"
@@ -475,15 +482,18 @@ export function RoomGuestsSection({ reservation, onUpdated }: RoomGuestsSectionP
 function GuestFormFields({
   form,
   onChange,
+  fullNameInputRef,
 }: {
   form: GuestFormState
   onChange: (form: GuestFormState) => void
+  fullNameInputRef?: React.RefObject<HTMLInputElement | null>
 }) {
   return (
     <>
       <label className="block text-sm">
         <span className="mb-1 block font-medium text-slate-700">Ad Soyad</span>
         <input
+          ref={fullNameInputRef}
           type="text"
           value={form.fullName}
           onChange={(event) => onChange({ ...form, fullName: event.target.value })}
