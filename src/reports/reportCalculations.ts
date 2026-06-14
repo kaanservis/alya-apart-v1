@@ -1,10 +1,11 @@
 import type { AccommodationUnit, Expense, Reservation } from '../types/database'
 import { getRemainingBalance, getTotalCollected } from '../reservations/depositCalculations'
 import { calculateNights } from '../reservations/pricing'
+import { findActiveReservationForUnit } from '../workflow/unitStatusLogic'
+import { getTurkeyDateKey } from '../lib/turkeyDate'
 import {
   clampRangeEnd,
   clampRangeStart,
-  countDaysInRange,
   expenseInRange,
   reservationOverlapsRange,
   type ReportDateRange,
@@ -16,47 +17,25 @@ export interface ReportSummary {
   netKazanc: number
   toplamRezervasyon: number
   toplamGeceleme: number
-  ortalamaDoluluk: number
+  gunlukDoluOda: number
+  toplamOda: number
+  gunlukDolulukOrani: number
 }
 
-export interface RoomPerformanceRow {
+export interface RoomReportRow {
   unitId: string
   unitName: string
   reservationCount: number
+  totalGuests: number
   totalNights: number
   totalRevenue: number
-}
-
-export interface OccupancyRow {
-  unitId: string
-  unitName: string
-  occupiedDays: number
-  emptyDays: number
-  occupancyRate: number
-}
-
-export interface FinancialReport {
-  toplamTahsilat: number
-  bekleyenTahsilat: number
-  toplamMasraf: number
-  netKar: number
-}
-
-export interface MonthlyChartPoint {
-  monthKey: string
-  label: string
-  gelir: number
-  masraf: number
-  netKar: number
+  collectedAmount: number
+  remainingBalance: number
 }
 
 export interface ReportData {
   summary: ReportSummary
-  roomPerformance: RoomPerformanceRow[]
-  topRooms: RoomPerformanceRow[]
-  occupancy: OccupancyRow[]
-  financial: FinancialReport
-  monthlyCharts: MonthlyChartPoint[]
+  roomReports: RoomReportRow[]
 }
 
 function overlapNights(
@@ -90,52 +69,20 @@ function filterExpensesInRange(expenses: Expense[], range: ReportDateRange) {
   return expenses.filter((expense) => expenseInRange(expense.tarih, range.start, range.end))
 }
 
-function buildMonthlyCharts(
-  reservations: Reservation[],
-  expenses: Expense[],
-  range: ReportDateRange,
-): MonthlyChartPoint[] {
-  const months = new Map<string, MonthlyChartPoint>()
+function computeDailyOccupancy(units: AccommodationUnit[], reservations: Reservation[]) {
+  const today = getTurkeyDateKey()
+  const occupiedToday = units.filter((unit) =>
+    Boolean(findActiveReservationForUnit(unit.id, reservations, today)),
+  ).length
 
-  function ensureMonth(monthKey: string) {
-    if (!months.has(monthKey)) {
-      const [year, month] = monthKey.split('-').map(Number)
-      const label = new Intl.DateTimeFormat('tr-TR', {
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'Europe/Istanbul',
-      }).format(new Date(Date.UTC(year, month - 1, 1, 12, 0, 0)))
+  const totalRooms = units.length
+  const gunlukDolulukOrani = totalRooms > 0 ? (occupiedToday / totalRooms) * 100 : 0
 
-      months.set(monthKey, {
-        monthKey,
-        label,
-        gelir: 0,
-        masraf: 0,
-        netKar: 0,
-      })
-    }
-
-    return months.get(monthKey)!
+  return {
+    gunlukDoluOda: occupiedToday,
+    toplamOda: totalRooms,
+    gunlukDolulukOrani,
   }
-
-  filterReservationsInRange(reservations, range).forEach((reservation) => {
-    const monthKey = reservation.giris_tarihi.slice(0, 7)
-    const point = ensureMonth(monthKey)
-    point.gelir += Number(reservation.toplam_ucret)
-  })
-
-  filterExpensesInRange(expenses, range).forEach((expense) => {
-    const monthKey = expense.tarih.slice(0, 7)
-    const point = ensureMonth(monthKey)
-    point.masraf += Number(expense.tutar)
-  })
-
-  return [...months.values()]
-    .map((point) => ({
-      ...point,
-      netKar: point.gelir - point.masraf,
-    }))
-    .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
 }
 
 export function buildReportData(
@@ -146,7 +93,7 @@ export function buildReportData(
 ): ReportData {
   const inRangeReservations = filterReservationsInRange(reservations, range)
   const inRangeExpenses = filterExpensesInRange(expenses, range)
-  const periodDays = countDaysInRange(range.start, range.end)
+  const dailyOccupancy = computeDailyOccupancy(units, reservations)
 
   const toplamGelir = inRangeReservations.reduce(
     (sum, reservation) => sum + Number(reservation.toplam_ucret),
@@ -165,51 +112,20 @@ export function buildReportData(
     0,
   )
 
-  const toplamTahsilat = inRangeReservations.reduce(
-    (sum, reservation) => sum + getTotalCollected(reservation),
-    0,
-  )
-  const bekleyenTahsilat = inRangeReservations.reduce(
-    (sum, reservation) => sum + getRemainingBalance(reservation),
-    0,
-  )
-
-  const roomPerformance = units
-    .map((unit) => {
-      const unitReservations = inRangeReservations.filter(
-        (reservation) => reservation.konaklama_birimi_id === unit.id,
-      )
-
-      return {
-        unitId: unit.id,
-        unitName: unit.name,
-        reservationCount: unitReservations.length,
-        totalNights: unitReservations.reduce(
-          (sum, reservation) =>
-            sum +
-            overlapNights(
-              reservation.giris_tarihi,
-              reservation.cikis_tarihi,
-              range.start,
-              range.end,
-            ),
-          0,
-        ),
-        totalRevenue: unitReservations.reduce(
-          (sum, reservation) => sum + Number(reservation.toplam_ucret),
-          0,
-        ),
-      }
-    })
-    .filter(
-      (row) => row.reservationCount > 0 || row.totalRevenue > 0 || row.totalNights > 0,
+  const roomReports = units.map((unit) => {
+    const unitReservations = inRangeReservations.filter(
+      (reservation) => reservation.konaklama_birimi_id === unit.id,
     )
-    .sort((a, b) => b.totalRevenue - a.totalRevenue)
 
-  const occupancy = units.map((unit) => {
-    const occupiedDays = inRangeReservations
-      .filter((reservation) => reservation.konaklama_birimi_id === unit.id)
-      .reduce(
+    return {
+      unitId: unit.id,
+      unitName: unit.name,
+      reservationCount: unitReservations.length,
+      totalGuests: unitReservations.reduce(
+        (sum, reservation) => sum + Number(reservation.kisi_sayisi),
+        0,
+      ),
+      totalNights: unitReservations.reduce(
         (sum, reservation) =>
           sum +
           overlapNights(
@@ -219,24 +135,21 @@ export function buildReportData(
             range.end,
           ),
         0,
-      )
-
-    const emptyDays = Math.max(0, periodDays - occupiedDays)
-    const occupancyRate = periodDays > 0 ? (occupiedDays / periodDays) * 100 : 0
-
-    return {
-      unitId: unit.id,
-      unitName: unit.name,
-      occupiedDays,
-      emptyDays,
-      occupancyRate,
+      ),
+      totalRevenue: unitReservations.reduce(
+        (sum, reservation) => sum + Number(reservation.toplam_ucret),
+        0,
+      ),
+      collectedAmount: unitReservations.reduce(
+        (sum, reservation) => sum + getTotalCollected(reservation),
+        0,
+      ),
+      remainingBalance: unitReservations.reduce(
+        (sum, reservation) => sum + getRemainingBalance(reservation),
+        0,
+      ),
     }
   })
-
-  const averageOccupancy =
-    occupancy.length > 0
-      ? occupancy.reduce((sum, row) => sum + row.occupancyRate, 0) / occupancy.length
-      : 0
 
   return {
     summary: {
@@ -245,19 +158,41 @@ export function buildReportData(
       netKazanc: toplamGelir - toplamMasraf,
       toplamRezervasyon: inRangeReservations.length,
       toplamGeceleme,
-      ortalamaDoluluk: averageOccupancy,
+      ...dailyOccupancy,
     },
-    roomPerformance,
-    topRooms: roomPerformance.slice(0, 5),
-    occupancy,
-    financial: {
-      toplamTahsilat,
-      bekleyenTahsilat,
-      toplamMasraf,
-      netKar: toplamTahsilat - toplamMasraf,
-    },
-    monthlyCharts: buildMonthlyCharts(reservations, expenses, range),
+    roomReports,
   }
+}
+
+export function getRoomReservationsInRange(
+  reservations: Reservation[],
+  unitId: string,
+  range: ReportDateRange,
+): Reservation[] {
+  return reservations
+    .filter(
+      (reservation) =>
+        reservation.konaklama_birimi_id === unitId &&
+        reservationOverlapsRange(
+          reservation.giris_tarihi,
+          reservation.cikis_tarihi,
+          range.start,
+          range.end,
+        ),
+    )
+    .sort((a, b) => a.giris_tarihi.localeCompare(b.giris_tarihi, 'tr'))
+}
+
+export function getReservationNightsInRange(
+  reservation: Reservation,
+  range: ReportDateRange,
+): number {
+  return overlapNights(
+    reservation.giris_tarihi,
+    reservation.cikis_tarihi,
+    range.start,
+    range.end,
+  )
 }
 
 export function formatReportCurrency(value: number) {
@@ -269,5 +204,8 @@ export function formatReportCurrency(value: number) {
 }
 
 export function formatPercent(value: number) {
-  return `%${value.toFixed(1)}`
+  return `%${value.toLocaleString('tr-TR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })}`
 }

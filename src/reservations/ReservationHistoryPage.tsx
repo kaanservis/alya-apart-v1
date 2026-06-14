@@ -1,4 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { GuestArchiveDetail } from '../guests/GuestArchiveDetail'
+import type { GuestEntryWithPhotos } from '../guests/guestTypes'
 import type { Reservation } from '../types/database'
 import { formatReservationDate } from './reservationDisplay'
 import { getTotalCollected } from './depositCalculations'
@@ -21,7 +23,7 @@ function formatCurrency(value: number) {
 }
 
 export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryPageProps) {
-  const { units, reservations, totalCount, filters, setFilters, loading, error, unitMap } =
+  const { units, reservations, guestMap, totalCount, filters, setFilters, loading, error, unitMap } =
     useReservationHistory(refreshToken)
 
   const resultLabel = useMemo(() => {
@@ -53,7 +55,7 @@ export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryP
             </p>
             <h2 className="mt-1 text-2xl font-bold text-slate-900">Rezervasyon Geçmişi</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Tamamlanmış rezervasyonları misafir adı, telefon veya odaya göre arayın.
+              Tamamlanmış rezervasyonları misafir adı, oda sakini veya odaya göre arayın.
             </p>
           </div>
           <span className="inline-flex w-fit rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">
@@ -146,13 +148,13 @@ export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryP
                 <thead className="border-b border-blue-100 bg-blue-50/80 text-xs uppercase tracking-wider text-blue-900">
                   <tr>
                     <th className="px-4 py-3.5 font-bold">Misafir</th>
-                    <th className="px-4 py-3.5 font-bold">Telefon</th>
                     <th className="px-4 py-3.5 font-bold">Oda</th>
                     <th className="px-4 py-3.5 font-bold">Giriş</th>
                     <th className="px-4 py-3.5 font-bold">Çıkış</th>
+                    <th className="px-4 py-3.5 font-bold">Kişi</th>
                     <th className="px-4 py-3.5 font-bold">Toplam</th>
                     <th className="px-4 py-3.5 font-bold">Alınan</th>
-                    <th className="px-4 py-3.5 font-bold">Not</th>
+                    <th className="px-4 py-3.5 font-bold">Detay</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -161,6 +163,7 @@ export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryP
                       key={reservation.id}
                       reservation={reservation}
                       unitName={unitMap.get(reservation.konaklama_birimi_id) ?? '—'}
+                      guests={guestMap.get(reservation.id) ?? []}
                     />
                   ))}
                 </tbody>
@@ -176,26 +179,51 @@ export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryP
 function HistoryRow({
   reservation,
   unitName,
+  guests,
 }: {
   reservation: Reservation
   unitName: string
+  guests: GuestEntryWithPhotos[]
 }) {
+  const [expanded, setExpanded] = useState(false)
+
   return (
-    <tr className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-blue-50/40">
-      <td className="px-4 py-3.5 font-semibold text-slate-900">{reservation.ad_soyad}</td>
-      <td className="px-4 py-3.5 text-slate-700">{reservation.telefon}</td>
-      <td className="px-4 py-3.5 font-medium text-blue-800">{unitName}</td>
-      <td className="px-4 py-3.5 text-slate-700">
-        {formatReservationDate(reservation.giris_tarihi)}
-      </td>
-      <td className="px-4 py-3.5 text-slate-700">
-        {formatReservationDate(reservation.cikis_tarihi)}
-      </td>
-      <td className="px-4 py-3.5 font-medium text-slate-900">
-        {formatCurrency(reservation.toplam_ucret)}
-      </td>
-      <td className="px-4 py-3.5 text-slate-700">{formatCurrency(getTotalCollected(reservation))}</td>
-      <td className="max-w-xs truncate px-4 py-3.5 text-slate-600">{reservation.notlar ?? '—'}</td>
-    </tr>
+    <>
+      <tr className="border-b border-slate-100 transition-colors last:border-b-0 hover:bg-blue-50/40">
+        <td className="px-4 py-3.5 font-semibold text-slate-900">{reservation.ad_soyad}</td>
+        <td className="px-4 py-3.5 font-medium text-blue-800">{unitName}</td>
+        <td className="px-4 py-3.5 text-slate-700">
+          {formatReservationDate(reservation.giris_tarihi)}
+        </td>
+        <td className="px-4 py-3.5 text-slate-700">
+          {formatReservationDate(reservation.cikis_tarihi)}
+        </td>
+        <td className="px-4 py-3.5 text-slate-700">{reservation.kisi_sayisi}</td>
+        <td className="px-4 py-3.5 font-medium text-slate-900">
+          {formatCurrency(reservation.toplam_ucret)}
+        </td>
+        <td className="px-4 py-3.5 text-slate-700">{formatCurrency(getTotalCollected(reservation))}</td>
+        <td className="px-4 py-3.5">
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100"
+          >
+            {expanded ? 'Gizle' : 'Misafirler'}
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-b border-slate-100 last:border-b-0">
+          <td colSpan={8} className="p-0">
+            <GuestArchiveDetail
+              reservationOwner={reservation.ad_soyad}
+              kisiSayisi={reservation.kisi_sayisi}
+              guests={guests}
+            />
+          </td>
+        </tr>
+      )}
+    </>
   )
 }

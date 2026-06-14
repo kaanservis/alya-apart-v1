@@ -78,8 +78,8 @@ export function exportCalendarExcel(entries: CalendarExportEntry[], periodLabel:
   exportRowsToExcel(`takvim-${periodLabel.replace(/\s+/g, '-')}`, CALENDAR_EXPORT_COLUMNS, toCalendarRows(entries))
 }
 
-export function exportCalendarPdf(entries: CalendarExportEntry[], periodLabel: string) {
-  exportRowsToPdf(
+export async function exportCalendarPdf(entries: CalendarExportEntry[], periodLabel: string) {
+  await exportRowsToPdf(
     `takvim-${periodLabel.replace(/\s+/g, '-')}`,
     `Rezervasyon Takvimi — ${periodLabel}`,
     CALENDAR_EXPORT_COLUMNS,

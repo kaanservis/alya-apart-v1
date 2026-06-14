@@ -143,7 +143,7 @@ export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
             <button
               type="button"
               disabled={rows.length === 0}
-              onClick={() => exportCustomerListPdf(rows)}
+              onClick={() => void exportCustomerListPdf(rows)}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               PDF İndir
@@ -151,7 +151,7 @@ export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
             <button
               type="button"
               disabled={rows.length === 0}
-              onClick={() => exportCustomerListExcel(rows)}
+              onClick={() => void exportCustomerListExcel(rows)}
               className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               Excel İndir

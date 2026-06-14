@@ -1,98 +1,51 @@
 import {
   exportRowsToExcel,
-  exportRowsToPdf,
   formatMoneyExport,
   type ExportColumn,
   type ExportRow,
 } from '../lib/exportData'
 import type { ReportData } from './reportCalculations'
-import { formatPercent, formatReportCurrency } from './reportCalculations'
 import type { ReportDateRange } from './reportDateRanges'
 
-function buildReportExportRows(report: ReportData, rangeLabel: string): ExportRow[] {
-  const rows: ExportRow[] = [
-    { bolum: 'Özet', metrik: 'Dönem', deger: rangeLabel },
-    { bolum: 'Özet', metrik: 'Toplam Gelir', deger: formatReportCurrency(report.summary.toplamGelir) },
-    { bolum: 'Özet', metrik: 'Toplam Masraf', deger: formatReportCurrency(report.summary.toplamMasraf) },
-    { bolum: 'Özet', metrik: 'Net Kazanç', deger: formatReportCurrency(report.summary.netKazanc) },
-    { bolum: 'Özet', metrik: 'Toplam Rezervasyon', deger: String(report.summary.toplamRezervasyon) },
-    { bolum: 'Özet', metrik: 'Toplam Geceleme', deger: String(report.summary.toplamGeceleme) },
-    {
-      bolum: 'Özet',
-      metrik: 'Ortalama Doluluk',
-      deger: formatPercent(report.summary.ortalamaDoluluk),
-    },
-  ]
-
-  report.roomPerformance.forEach((row) => {
-    rows.push({
-      bolum: 'Oda Performansı',
-      metrik: row.unitName,
-      deger: `${row.reservationCount} rez. | ${row.totalNights} gece | ${formatReportCurrency(row.totalRevenue)}`,
-    })
-  })
-
-  report.occupancy.forEach((row) => {
-    rows.push({
-      bolum: 'Doluluk',
-      metrik: row.unitName,
-      deger: `${row.occupiedDays} dolu / ${row.emptyDays} boş | ${formatPercent(row.occupancyRate)}`,
-    })
-  })
-
-  rows.push(
-    {
-      bolum: 'Finansal',
-      metrik: 'Toplam Tahsilat',
-      deger: formatReportCurrency(report.financial.toplamTahsilat),
-    },
-    {
-      bolum: 'Finansal',
-      metrik: 'Bekleyen Tahsilat',
-      deger: formatReportCurrency(report.financial.bekleyenTahsilat),
-    },
-    {
-      bolum: 'Finansal',
-      metrik: 'Toplam Masraf',
-      deger: formatReportCurrency(report.financial.toplamMasraf),
-    },
-    {
-      bolum: 'Finansal',
-      metrik: 'Net Kar',
-      deger: formatReportCurrency(report.financial.netKar),
-    },
-  )
-
-  report.monthlyCharts.forEach((point) => {
-    rows.push({
-      bolum: 'Aylık',
-      metrik: point.label,
-      deger: `Gelir ${formatMoneyExport(point.gelir)} | Masraf ${formatMoneyExport(point.masraf)} | Net ${formatMoneyExport(point.netKar)}`,
-    })
-  })
-
-  return rows
-}
-
-const REPORT_EXPORT_COLUMNS: ExportColumn[] = [
-  { header: 'Bölüm', key: 'bolum' },
-  { header: 'Metrik', key: 'metrik' },
-  { header: 'Değer', key: 'deger' },
+const ROOM_EXPORT_COLUMNS: ExportColumn[] = [
+  { header: 'Oda', key: 'oda' },
+  { header: 'Rezervasyon Sayısı', key: 'rezervasyonSayisi' },
+  { header: 'Toplam Kişi', key: 'toplamKisi' },
+  { header: 'Toplam Gece', key: 'toplamGece' },
+  { header: 'Toplam Ücret', key: 'toplamUcret' },
+  { header: 'Alınan Ücret', key: 'alinanUcret' },
+  { header: 'Kalan Bakiye', key: 'kalanBakiye' },
 ]
 
-export function exportReportPdf(report: ReportData, range: ReportDateRange) {
-  exportRowsToPdf(
-    'rapor',
-    `ALYA APART Raporu — ${range.label}`,
-    REPORT_EXPORT_COLUMNS,
-    buildReportExportRows(report, range.label),
-  )
+function buildRoomExportRows(report: ReportData): ExportRow[] {
+  return report.roomReports.map((row) => ({
+    oda: row.unitName,
+    rezervasyonSayisi: String(row.reservationCount),
+    toplamKisi: String(row.totalGuests),
+    toplamGece: String(row.totalNights),
+    toplamUcret: formatMoneyExport(row.totalRevenue),
+    alinanUcret: formatMoneyExport(row.collectedAmount),
+    kalanBakiye: formatMoneyExport(row.remainingBalance),
+  }))
 }
 
 export function exportReportExcel(report: ReportData, range: ReportDateRange) {
+  const summaryRows: ExportRow[] = [
+    { oda: 'ÖZET', rezervasyonSayisi: range.label, toplamKisi: '', toplamGece: '', toplamUcret: '', alinanUcret: '', kalanBakiye: '' },
+    { oda: 'Toplam Gelir', rezervasyonSayisi: formatMoneyExport(report.summary.toplamGelir), toplamKisi: '', toplamGece: '', toplamUcret: '', alinanUcret: '', kalanBakiye: '' },
+    { oda: 'Toplam Masraf', rezervasyonSayisi: formatMoneyExport(report.summary.toplamMasraf), toplamKisi: '', toplamGece: '', toplamUcret: '', alinanUcret: '', kalanBakiye: '' },
+    { oda: 'Net Kazanç', rezervasyonSayisi: formatMoneyExport(report.summary.netKazanc), toplamKisi: '', toplamGece: '', toplamUcret: '', alinanUcret: '', kalanBakiye: '' },
+    { oda: 'Toplam Rezervasyon', rezervasyonSayisi: String(report.summary.toplamRezervasyon), toplamKisi: '', toplamGece: '', toplamUcret: '', alinanUcret: '', kalanBakiye: '' },
+    { oda: 'Toplam Geceleme', rezervasyonSayisi: String(report.summary.toplamGeceleme), toplamKisi: '', toplamGece: '', toplamUcret: '', alinanUcret: '', kalanBakiye: '' },
+    { oda: '', rezervasyonSayisi: '', toplamKisi: '', toplamGece: '', toplamUcret: '', alinanUcret: '', kalanBakiye: '' },
+  ]
+
   exportRowsToExcel(
-    'rapor',
-    REPORT_EXPORT_COLUMNS,
-    buildReportExportRows(report, range.label),
+    `alya-apart-rapor-${range.start}-${range.end}`,
+    ROOM_EXPORT_COLUMNS,
+    [...summaryRows, ...buildRoomExportRows(report)],
   )
 }
+
+export { exportDetailedReportPdf, exportSeasonReportPdf } from './reportPdfExports'
+export { exportRoomReportPdf } from './roomReportPdf'

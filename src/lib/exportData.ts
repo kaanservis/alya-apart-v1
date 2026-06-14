@@ -1,5 +1,12 @@
-import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import {
+  createThemedPdf,
+  drawStandardFooter,
+  drawStandardHeader,
+  getPdfMargin,
+  getPdfTableStyles,
+} from './pdfDocument'
+import { formatPdfCurrency } from './pdfTheme'
 
 export interface ExportColumn {
   header: string
@@ -42,32 +49,30 @@ export function exportRowsToExcel(
   )
 }
 
-export function exportRowsToPdf(
+export async function exportRowsToPdf(
   filename: string,
   title: string,
   columns: ExportColumn[],
   rows: ExportRow[],
 ) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
-  doc.setFontSize(14)
-  doc.text(title, 40, 36)
-
-  autoTable(doc, {
-    startY: 48,
-    head: [columns.map((column) => column.header)],
-    body: rows.map((row) => columns.map((column) => String(row[column.key] ?? ''))),
-    styles: { fontSize: 8, cellPadding: 4 },
-    headStyles: { fillColor: [30, 64, 175] },
-    margin: { left: 24, right: 24 },
+  const doc = await createThemedPdf('landscape')
+  const startY = drawStandardHeader(doc, {
+    documentTitle: title,
+    compact: true,
   })
 
+  autoTable(doc, {
+    startY,
+    margin: getPdfMargin(true),
+    head: [columns.map((column) => column.header)],
+    body: rows.map((row) => columns.map((column) => String(row[column.key] ?? ''))),
+    ...getPdfTableStyles(),
+  })
+
+  drawStandardFooter(doc)
   doc.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`)
 }
 
 export function formatMoneyExport(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 2,
-  }).format(value)
+  return formatPdfCurrency(value)
 }

@@ -4,8 +4,13 @@ import {
   formatPercent,
   formatReportCurrency,
 } from './reportCalculations'
-import { exportReportExcel, exportReportPdf } from './reportExports'
-import { ReportBarChart } from './ReportBarChart'
+import type { RoomReportRow } from './reportCalculations'
+import {
+  exportDetailedReportPdf,
+  exportReportExcel,
+  exportRoomReportPdf,
+  exportSeasonReportPdf,
+} from './reportExports'
 import {
   getReportDateRange,
   type ReportFilterPreset,
@@ -27,16 +32,19 @@ const FILTER_OPTIONS: { value: ReportFilterPreset; label: string }[] = [
 function SummaryCard({
   label,
   value,
+  hint,
   accent,
 }: {
   label: string
   value: string
+  hint?: string
   accent: string
 }) {
   return (
     <div className={`rounded-2xl border p-5 shadow-sm ${accent}`}>
       <p className="text-xs font-semibold uppercase tracking-wide opacity-80">{label}</p>
       <p className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{value}</p>
+      {hint && <p className="mt-1 text-sm font-medium opacity-80">{hint}</p>}
     </div>
   )
 }
@@ -46,6 +54,8 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
   const [preset, setPreset] = useState<ReportFilterPreset>('season')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
+  const [exporting, setExporting] = useState<string | null>(null)
+  const [exportingRoomId, setExportingRoomId] = useState<string | null>(null)
 
   const range = useMemo(
     () => getReportDateRange(preset, new Date(), customStart, customEnd),
@@ -57,6 +67,32 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
     [units, reservations, expenses, range],
   )
 
+  const unitMap = useMemo(() => new Map(units.map((unit) => [unit.id, unit.name])), [units])
+
+  async function handleExport(type: 'season' | 'detailed' | 'excel') {
+    setExporting(type)
+    try {
+      if (type === 'season') {
+        await exportSeasonReportPdf(report, range)
+      } else if (type === 'detailed') {
+        await exportDetailedReportPdf(report, range, reservations, unitMap)
+      } else {
+        exportReportExcel(report, range)
+      }
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  async function handleRoomPdf(row: RoomReportRow) {
+    setExportingRoomId(row.unitId)
+    try {
+      await exportRoomReportPdf(row, range, reservations)
+    } finally {
+      setExportingRoomId(null)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm ring-1 ring-blue-50 sm:p-6">
@@ -67,7 +103,7 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
             </p>
             <h2 className="mt-1 text-2xl font-bold text-slate-900">Raporlar</h2>
             <p className="mt-1 text-sm text-slate-600">
-              Sezon ve dönemsel gelir, masraf ve doluluk istatistikleri.
+              Gelir, masraf, oda performansı ve günlük doluluk özeti.
             </p>
             <p className="mt-2 text-sm font-semibold text-blue-800">{range.label}</p>
           </div>
@@ -75,16 +111,24 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={!report}
-              onClick={() => report && exportReportPdf(report, range)}
+              disabled={loading || Boolean(exporting)}
+              onClick={() => void handleExport('season')}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
-              PDF İndir
+              {exporting === 'season' ? 'Hazırlanıyor...' : 'Sezon Raporu PDF'}
             </button>
             <button
               type="button"
-              disabled={!report}
-              onClick={() => report && exportReportExcel(report, range)}
+              disabled={loading || Boolean(exporting)}
+              onClick={() => void handleExport('detailed')}
+              className="rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+            >
+              {exporting === 'detailed' ? 'Hazırlanıyor...' : 'Detaylı Rapor PDF'}
+            </button>
+            <button
+              type="button"
+              disabled={loading || Boolean(exporting)}
+              onClick={() => void handleExport('excel')}
               className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               Excel İndir
@@ -175,109 +219,19 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
               accent="border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50"
             />
             <SummaryCard
-              label="Ortalama Doluluk"
-              value={formatPercent(report.summary.ortalamaDoluluk)}
+              label="Günlük Doluluk"
+              value={`${report.summary.gunlukDoluOda} / ${report.summary.toplamOda} Oda Dolu`}
+              hint={formatPercent(report.summary.gunlukDolulukOrani)}
               accent="border-cyan-200 bg-gradient-to-br from-cyan-50 to-sky-50"
-            />
-          </section>
-
-          <section className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900">Finansal Rapor</h3>
-              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl bg-emerald-50 p-4">
-                  <dt className="text-xs font-semibold uppercase text-emerald-700">
-                    Toplam Tahsilat
-                  </dt>
-                  <dd className="mt-1 text-xl font-bold text-slate-900">
-                    {formatReportCurrency(report.financial.toplamTahsilat)}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-amber-50 p-4">
-                  <dt className="text-xs font-semibold uppercase text-amber-700">
-                    Bekleyen Tahsilat
-                  </dt>
-                  <dd className="mt-1 text-xl font-bold text-slate-900">
-                    {formatReportCurrency(report.financial.bekleyenTahsilat)}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-rose-50 p-4">
-                  <dt className="text-xs font-semibold uppercase text-rose-700">
-                    Toplam Masraf
-                  </dt>
-                  <dd className="mt-1 text-xl font-bold text-slate-900">
-                    {formatReportCurrency(report.financial.toplamMasraf)}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-blue-50 p-4">
-                  <dt className="text-xs font-semibold uppercase text-blue-700">Net Kar</dt>
-                  <dd className="mt-1 text-xl font-bold text-slate-900">
-                    {formatReportCurrency(report.financial.netKar)}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900">En Çok Kazandıran Odalar</h3>
-              {report.topRooms.length === 0 ? (
-                <p className="mt-4 text-sm text-slate-500">Bu dönemde veri yok.</p>
-              ) : (
-                <ol className="mt-4 space-y-3">
-                  {report.topRooms.map((room, index) => (
-                    <li
-                      key={room.unitId}
-                      className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-700 text-sm font-bold text-white">
-                          {index + 1}
-                        </span>
-                        <span className="font-semibold text-slate-900">{room.unitName}</span>
-                      </div>
-                      <span className="text-sm font-bold text-emerald-700">
-                        {formatReportCurrency(room.totalRevenue)}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </div>
-          </section>
-
-          <section className="grid gap-4 xl:grid-cols-3">
-            <ReportBarChart
-              title="Aylık Gelir"
-              points={report.monthlyCharts.map((point) => ({
-                label: point.label,
-                value: point.gelir,
-              }))}
-              colorClass="bg-emerald-500"
-              formatValue={formatReportCurrency}
-            />
-            <ReportBarChart
-              title="Aylık Masraf"
-              points={report.monthlyCharts.map((point) => ({
-                label: point.label,
-                value: point.masraf,
-              }))}
-              colorClass="bg-rose-500"
-              formatValue={formatReportCurrency}
-            />
-            <ReportBarChart
-              title="Aylık Net Kar"
-              points={report.monthlyCharts.map((point) => ({
-                label: point.label,
-                value: point.netKar,
-              }))}
-              colorClass="bg-blue-600"
-              formatValue={formatReportCurrency}
             />
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-4">
-              <h3 className="text-lg font-bold text-slate-900">Oda Performansı</h3>
+              <h3 className="text-lg font-bold text-slate-900">Raporlar</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Seçili dönemde oda bazlı gelir, kişi sayısı ve tahsilat özeti.
+              </p>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-left text-sm">
@@ -285,56 +239,44 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
                   <tr>
                     <th className="px-4 py-3 font-bold">Oda</th>
                     <th className="px-4 py-3 font-bold">Rezervasyon Sayısı</th>
-                    <th className="px-4 py-3 font-bold">Toplam Geceleme</th>
-                    <th className="px-4 py-3 font-bold">Toplam Gelir</th>
+                    <th className="px-4 py-3 font-bold">Toplam Kişi</th>
+                    <th className="px-4 py-3 font-bold">Toplam Gece</th>
+                    <th className="px-4 py-3 font-bold">Toplam Ücret</th>
+                    <th className="px-4 py-3 font-bold">Alınan Ücret</th>
+                    <th className="px-4 py-3 font-bold">Kalan Bakiye</th>
+                    <th className="px-4 py-3 font-bold">PDF Rapor</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {report.roomPerformance.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                        Bu dönemde oda performans verisi yok.
-                      </td>
-                    </tr>
-                  ) : (
-                    report.roomPerformance.map((row) => (
-                      <tr key={row.unitId} className="border-t border-slate-100">
-                        <td className="px-4 py-3 font-semibold text-slate-900">{row.unitName}</td>
-                        <td className="px-4 py-3">{row.reservationCount}</td>
-                        <td className="px-4 py-3">{row.totalNights}</td>
-                        <td className="px-4 py-3 font-semibold text-emerald-700">
-                          {formatReportCurrency(row.totalRevenue)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h3 className="text-lg font-bold text-slate-900">Doluluk Raporu</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-600">
-                  <tr>
-                    <th className="px-4 py-3 font-bold">Oda</th>
-                    <th className="px-4 py-3 font-bold">Dolu Gün</th>
-                    <th className="px-4 py-3 font-bold">Boş Gün</th>
-                    <th className="px-4 py-3 font-bold">Doluluk Oranı</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.occupancy.map((row) => (
-                    <tr key={row.unitId} className="border-t border-slate-100">
+                  {report.roomReports.map((row, index) => (
+                    <tr
+                      key={row.unitId}
+                      className={`border-t border-slate-100 ${
+                        index % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'
+                      }`}
+                    >
                       <td className="px-4 py-3 font-semibold text-slate-900">{row.unitName}</td>
-                      <td className="px-4 py-3">{row.occupiedDays}</td>
-                      <td className="px-4 py-3">{row.emptyDays}</td>
-                      <td className="px-4 py-3 font-semibold text-blue-700">
-                        {formatPercent(row.occupancyRate)}
+                      <td className="px-4 py-3">{row.reservationCount}</td>
+                      <td className="px-4 py-3">{row.totalGuests}</td>
+                      <td className="px-4 py-3">{row.totalNights}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-900">
+                        {formatReportCurrency(row.totalRevenue)}
+                      </td>
+                      <td className="px-4 py-3 text-emerald-700">
+                        {formatReportCurrency(row.collectedAmount)}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-amber-700">
+                        {formatReportCurrency(row.remainingBalance)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          disabled={Boolean(exportingRoomId)}
+                          onClick={() => void handleRoomPdf(row)}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {exportingRoomId === row.unitId ? '...' : 'PDF'}
+                        </button>
                       </td>
                     </tr>
                   ))}

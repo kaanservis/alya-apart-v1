@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { SlideOverPanel } from '../components/SlideOverPanel'
-import { PaymentBreakdown } from '../components/PaymentBreakdown'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
-import { exportRoomReservationsExcel, exportRoomReservationsPdf } from '../customers/customerExports'
+import { exportGuestRegistrationPdf } from '../guests/guestRegistrationPdf'
+import { exportRoomReservationsExcel } from '../customers/customerExports'
 import { findRoomReservations } from '../customers/customerListUtils'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import { getRemainingBalance } from '../reservations/depositCalculations'
+import { ReservationTahsilatSection } from '../reservations/ReservationTahsilatSection'
+import { RoomGuestsSection } from '../guests/RoomGuestsSection'
 import {
   findActiveReservationForUnit,
   findLastGuestForUnit,
@@ -25,14 +27,6 @@ interface RoomDetailPanelProps {
   onUpdated: () => void
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
 export function RoomDetailPanel({
   unit,
   reservations,
@@ -41,6 +35,7 @@ export function RoomDetailPanel({
   onUpdated,
 }: RoomDetailPanelProps) {
   const [roomHistory, setRoomHistory] = useState<Reservation[]>([])
+  const [activeReservationState, setActiveReservationState] = useState<Reservation | null>(null)
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -75,6 +70,10 @@ export function RoomDetailPanel({
     [unit.id, reservations],
   )
 
+  useEffect(() => {
+    setActiveReservationState(activeReservation ?? null)
+  }, [activeReservation])
+
   const lastGuest = useMemo(
     () => findLastGuestForUnit(unit.id, reservations),
     [unit.id, reservations],
@@ -93,16 +92,18 @@ export function RoomDetailPanel({
           return false
         }
 
-        if (activeReservation) {
-          return reservation.giris_tarihi >= activeReservation.cikis_tarihi
+        if (activeReservationState ?? activeReservation) {
+          const current = activeReservationState ?? activeReservation
+          return reservation.giris_tarihi >= current!.cikis_tarihi
         }
 
         return reservation.giris_tarihi > today
       })
       .sort((a, b) => a.giris_tarihi.localeCompare(b.giris_tarihi, 'tr'))
-  }, [unit.id, reservations, activeReservation])
+  }, [unit.id, reservations, activeReservation, activeReservationState])
 
-  const checkoutId = checkoutReservationId ?? activeReservation?.id
+  const displayedReservation = activeReservationState ?? activeReservation
+  const checkoutId = checkoutReservationId ?? displayedReservation?.id
 
   async function handleCompleteCheckout() {
     if (!checkoutId) {
@@ -152,16 +153,20 @@ export function RoomDetailPanel({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={roomHistory.length === 0}
-              onClick={() => exportRoomReservationsPdf(unit.name, roomHistory)}
+              disabled={!displayedReservation}
+              onClick={() => {
+                if (displayedReservation) {
+                  void exportGuestRegistrationPdf(unit.name, displayedReservation)
+                }
+              }}
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
             >
-              PDF Export
+              Misafir Listesi PDF
             </button>
             <button
               type="button"
               disabled={roomHistory.length === 0}
-              onClick={() => exportRoomReservationsExcel(unit.name, roomHistory)}
+              onClick={() => void exportRoomReservationsExcel(unit.name, roomHistory)}
               className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               Excel Export
@@ -175,47 +180,50 @@ export function RoomDetailPanel({
           </div>
         )}
 
-        {activeReservation ? (
-          <section className="rounded-2xl border border-rose-200 bg-rose-50/60 p-5">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-rose-800">
+        {displayedReservation ? (
+          <section className="rounded-2xl border border-purple-200 bg-[#F3E8FF]/80 p-5">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-purple-900">
               Mevcut Misafir
             </h3>
             <dl className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <dt className="text-xs text-slate-500">Misafir</dt>
-                <dd className="text-lg font-bold text-slate-900">{activeReservation.ad_soyad}</dd>
+                <dd className="text-lg font-bold text-slate-900">{displayedReservation.ad_soyad}</dd>
               </div>
               <div>
                 <dt className="text-xs text-slate-500">Giriş</dt>
                 <dd className="font-semibold text-slate-900">
-                  {formatReservationDate(activeReservation.giris_tarihi)}
+                  {formatReservationDate(displayedReservation.giris_tarihi)}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs text-slate-500">Çıkış</dt>
                 <dd className="font-semibold text-slate-900">
-                  {formatReservationDate(activeReservation.cikis_tarihi)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-slate-500">Toplam Ücret</dt>
-                <dd className="font-semibold text-slate-900">
-                  {formatCurrency(activeReservation.toplam_ucret)}
+                  {formatReservationDate(displayedReservation.cikis_tarihi)}
                 </dd>
               </div>
             </dl>
-            <div className="mt-5 border-t border-rose-100 pt-5">
+            <div className="mt-5 border-t border-purple-100 pt-5">
               <h4 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-600">
-                Ödeme Detayı
+                Ödeme
               </h4>
-              <PaymentBreakdown reservation={activeReservation} />
-            </div>
-            <div className="mt-5 border-t border-rose-100 pt-5">
-              <WhatsAppGuestActions
-                phone={activeReservation.telefon}
-                adSoyad={activeReservation.ad_soyad}
-                kalanBakiye={getRemainingBalance(activeReservation)}
+              <ReservationTahsilatSection
+                reservation={displayedReservation}
+                onUpdated={(updated) => {
+                  setActiveReservationState(updated)
+                  onUpdated()
+                }}
               />
+            </div>
+            <div className="mt-5 border-t border-purple-100 pt-5">
+              <WhatsAppGuestActions
+                phone={displayedReservation.telefon}
+                adSoyad={displayedReservation.ad_soyad}
+                kalanBakiye={getRemainingBalance(displayedReservation)}
+              />
+            </div>
+            <div className="mt-5 border-t border-purple-100 pt-5">
+              <RoomGuestsSection reservation={displayedReservation} onUpdated={onUpdated} />
             </div>
           </section>
         ) : unitStatus === 'Temizlik Bekliyor' ? (

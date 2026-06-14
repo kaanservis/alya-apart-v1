@@ -2,10 +2,10 @@ import type { UnitStatus } from '../types/database'
 import { normalizeUnitStatus } from './unitStatusLogic'
 
 const statusStyles: Record<UnitStatus, string> = {
-  Boş: 'bg-emerald-100 text-emerald-800 ring-emerald-200/80',
-  Dolu: 'bg-rose-100 text-rose-800 ring-rose-200/80',
-  'Çıkış Bekliyor': 'bg-orange-100 text-orange-800 ring-orange-200/80',
-  'Temizlik Bekliyor': 'bg-violet-100 text-violet-800 ring-violet-200/80',
+  Boş: 'bg-[#DBEAFE] text-[#1D4ED8] ring-[#BFDBFE]',
+  Dolu: 'bg-[#EDE9FE] text-[#6D28D9] ring-[#DDD6FE]',
+  'Çıkış Bekliyor': 'bg-[#FFEDD5] text-[#C2410C] ring-[#FED7AA]',
+  'Temizlik Bekliyor': 'bg-[#FEF9C3] text-[#A16207] ring-[#FDE68A]',
 }
 
 const statusLabels: Record<UnitStatus, string> = {

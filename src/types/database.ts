@@ -39,6 +39,26 @@ export interface PaymentRecord {
   created_at: string
 }
 
+export type GuestPhotoType = 'front_id' | 'back_id' | 'guest_photo'
+
+export interface GuestEntry {
+  id: string
+  reservation_id: string
+  full_name: string
+  tc_no: string | null
+  phone: string | null
+  notes: string | null
+  created_at: string
+}
+
+export interface GuestPhoto {
+  id: string
+  guest_entry_id: string
+  photo_type: GuestPhotoType
+  photo_url: string
+  created_at: string
+}
+
 export interface Expense {
   id: string
   tarih: string
@@ -149,6 +169,22 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Omit<PaymentRecord, 'id' | 'created_at'>>
+      }
+      guest_entries: {
+        Row: GuestEntry
+        Insert: Omit<GuestEntry, 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Omit<GuestEntry, 'id' | 'created_at'>>
+      }
+      guest_photos: {
+        Row: GuestPhoto
+        Insert: Omit<GuestPhoto, 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Omit<GuestPhoto, 'id' | 'created_at'>>
       }
       expenses: {
         Row: Expense

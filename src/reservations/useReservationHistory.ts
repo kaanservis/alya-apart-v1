@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { fetchGuestEntriesForReservations } from '../guests/guestService'
+import type { GuestEntryWithPhotos } from '../guests/guestTypes'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import {
   ACCOMMODATION_UNITS_ORDER_COLUMN,
@@ -23,6 +25,7 @@ export const EMPTY_HISTORY_FILTERS: ReservationHistoryFilters = {
 function filterReservations(
   reservations: Reservation[],
   filters: ReservationHistoryFilters,
+  guestMap: Map<string, GuestEntryWithPhotos[]>,
 ): Reservation[] {
   const query = filters.query.trim().toLowerCase()
 
@@ -43,10 +46,15 @@ function filterReservations(
       return true
     }
 
+    const guestMatches = (guestMap.get(reservation.id) ?? []).some((guest) =>
+      guest.full_name.toLowerCase().includes(query),
+    )
+
     return (
       reservation.ad_soyad.toLowerCase().includes(query) ||
       reservation.telefon.toLowerCase().includes(query) ||
-      (reservation.notlar ?? '').toLowerCase().includes(query)
+      (reservation.notlar ?? '').toLowerCase().includes(query) ||
+      guestMatches
     )
   })
 }
@@ -54,6 +62,7 @@ function filterReservations(
 export function useReservationHistory(refreshToken = 0) {
   const [units, setUnits] = useState<AccommodationUnit[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
+  const [guestMap, setGuestMap] = useState<Map<string, GuestEntryWithPhotos[]>>(new Map())
   const [filters, setFilters] = useState<ReservationHistoryFilters>(EMPTY_HISTORY_FILTERS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -70,6 +79,7 @@ export function useReservationHistory(refreshToken = 0) {
       if (!isSupabaseConfigured || !supabase) {
         setUnits([])
         setReservations([])
+        setGuestMap(new Map())
         setError('Supabase bağlantısı yapılandırılmadı.')
         setLoading(false)
         return
@@ -96,8 +106,22 @@ export function useReservationHistory(refreshToken = 0) {
         return
       }
 
+      const loadedReservations = (reservationsResult.data ?? []) as Reservation[]
+
+      let loadedGuestMap = new Map<string, GuestEntryWithPhotos[]>()
+      try {
+        loadedGuestMap = await fetchGuestEntriesForReservations(
+          loadedReservations.map((reservation) => reservation.id),
+        )
+      } catch (guestError) {
+        setError(guestError instanceof Error ? guestError.message : 'Misafir arşivi yüklenemedi.')
+        setLoading(false)
+        return
+      }
+
       setUnits(sortAccommodationUnitsByDisplayOrder((unitsResult.data ?? []) as AccommodationUnit[]))
-      setReservations((reservationsResult.data ?? []) as Reservation[])
+      setReservations(loadedReservations)
+      setGuestMap(loadedGuestMap)
       setError(null)
       setLoading(false)
     }
@@ -106,8 +130,8 @@ export function useReservationHistory(refreshToken = 0) {
   }, [refreshToken, internalRefresh])
 
   const filteredReservations = useMemo(
-    () => filterReservations(reservations, filters),
-    [reservations, filters],
+    () => filterReservations(reservations, filters, guestMap),
+    [reservations, filters, guestMap],
   )
 
   const unitMap = useMemo(() => new Map(units.map((unit) => [unit.id, unit.name])), [units])
@@ -115,6 +139,7 @@ export function useReservationHistory(refreshToken = 0) {
   return {
     units,
     reservations: filteredReservations,
+    guestMap,
     totalCount: reservations.length,
     filters,
     setFilters,

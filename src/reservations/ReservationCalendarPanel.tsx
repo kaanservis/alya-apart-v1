@@ -128,7 +128,7 @@ export function ReservationCalendarPanel({
           <button
             type="button"
             disabled={loading || calendarExportEntries.length === 0}
-            onClick={() => exportCalendarPdf(calendarExportEntries, periodLabel)}
+            onClick={() => void exportCalendarPdf(calendarExportEntries, periodLabel)}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             PDF Export

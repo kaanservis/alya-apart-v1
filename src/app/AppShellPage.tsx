@@ -91,7 +91,7 @@ export function AppShellPage() {
     cash: 'Rezervasyon ödemelerini ve aktif rezervasyon tahsilat durumunu görüntüleyin.',
     expenses: 'Masraf kayıtlarını ekleyin, düzenleyin ve dönemsel masraf istatistiklerini görün.',
     reports:
-      'Gelir, masraf, doluluk ve oda performansını dönemsel filtrelerle analiz edin.',
+      'Gelir, masraf, oda performansı ve günlük doluluk raporlarını dönemsel filtrelerle inceleyin.',
     rooms: 'Oda bilgileri, açıklamalar, özellikler ve web sitesi fotoğraflarını yönetin.',
     settings: 'İşletme WhatsApp numarası ve iletişim ayarlarını yönetin.',
     backup: 'Tüm verileri yedekleyin, geri yükleyin ve otomatik günlük yedekleri yönetin.',

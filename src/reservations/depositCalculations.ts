@@ -10,6 +10,10 @@ export function getRemainingBalance(reservation: ReservationPaymentFields): numb
   return Math.max(0, Number(reservation.toplam_ucret) - getTotalCollected(reservation))
 }
 
+export function isAccountClosed(reservation: ReservationPaymentFields): boolean {
+  return Number(reservation.toplam_ucret) > 0 && getRemainingBalance(reservation) === 0
+}
+
 export function getCheckoutDue(reservation: ReservationPaymentFields): number {
   return getRemainingBalance(reservation)
 }
