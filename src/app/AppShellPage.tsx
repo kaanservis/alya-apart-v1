@@ -9,6 +9,7 @@ import { CustomersPage } from '../customers/CustomersPage'
 import { ReportsPage } from '../reports/ReportsPage'
 import { RoomsAdminPage } from '../rooms-admin/RoomsAdminPage'
 import { SettingsPage } from '../settings/SettingsPage'
+import { WebsiteManagementPage } from '../website-admin/WebsiteManagementPage'
 import { CalendarViewSection } from '../calendar/CalendarViewSection'
 import { ReservationHistoryPage } from '../reservations/ReservationHistoryPage'
 import { ReservationsManagementPage } from '../reservations/ReservationsManagementPage'
@@ -93,6 +94,7 @@ export function AppShellPage() {
     reports:
       'Gelir, masraf, oda performansı ve günlük doluluk raporlarını dönemsel filtrelerle inceleyin.',
     rooms: 'Oda bilgileri, açıklamalar, özellikler ve web sitesi fotoğraflarını yönetin.',
+    website: 'Web sitesi başlığı, iletişim bilgileri ve adres ayarlarını yönetin.',
     settings: 'İşletme WhatsApp numarası ve iletişim ayarlarını yönetin.',
     backup: 'Tüm verileri yedekleyin, geri yükleyin ve otomatik günlük yedekleri yönetin.',
   }
@@ -212,6 +214,8 @@ export function AppShellPage() {
             {activeTab === 'rooms' && (
               <RoomsAdminPage refreshToken={refreshToken} onUpdated={handleUpdated} />
             )}
+
+            {activeTab === 'website' && <WebsiteManagementPage />}
 
             {activeTab === 'settings' && <SettingsPage />}
 

@@ -8,6 +8,7 @@ export type AppTab =
   | 'expenses'
   | 'reports'
   | 'rooms'
+  | 'website'
   | 'settings'
   | 'backup'
 
@@ -72,6 +73,12 @@ export const APP_ROUTES: AppRoute[] = [
     path: '/rooms',
     label: 'Odalar',
     menuLabel: 'Odalar',
+  },
+  {
+    id: 'website',
+    path: '/website',
+    label: 'Web Sitesi Yönetimi',
+    menuLabel: '🌐 Web Sitesi Yönetimi',
   },
   {
     id: 'settings',
