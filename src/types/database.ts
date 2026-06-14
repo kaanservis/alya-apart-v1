@@ -141,6 +141,47 @@ export interface WebsiteGalleryPhoto {
   createdAt: string
 }
 
+export type ApartmentId = number
+
+export interface ApartmentRow {
+  id: ApartmentId
+  name: string
+  description: string
+  cover_image: string | null
+  feature_near_sea: boolean
+  feature_wifi: boolean
+  feature_ac: boolean
+  feature_kitchen: boolean
+  feature_balcony: boolean
+  feature_family_friendly: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ApartmentPhotoRow {
+  id: ApartmentId
+  apartment_id: ApartmentId
+  photo_url: string
+  sort_order: number
+  created_at: string
+}
+
+export interface ApartmentPhoto {
+  id: ApartmentId | string
+  apartmentId: ApartmentId
+  photoUrl: string
+  sortOrder: number
+  createdAt: string
+  isPending?: boolean
+}
+
+export interface ApartmentProfile {
+  apartment: ApartmentRow
+  photos: ApartmentPhoto[]
+  coverUrl: string | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -227,6 +268,22 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Omit<WebsiteGalleryRow, 'id' | 'created_at'>>
+      }
+      apartments: {
+        Row: ApartmentRow
+        Insert: Omit<ApartmentRow, 'created_at' | 'updated_at'> & {
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Omit<ApartmentRow, 'id' | 'created_at' | 'updated_at'>>
+      }
+      apartment_photos: {
+        Row: ApartmentPhotoRow
+        Insert: Omit<ApartmentPhotoRow, 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Omit<ApartmentPhotoRow, 'id' | 'created_at'>>
       }
     }
   }

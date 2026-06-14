@@ -98,8 +98,12 @@ import { ensureAdminPath } from './appSection'
 
 const DEFAULT_TAB: AppTab = 'dashboard'
 
+function normalizeTabSegment(pathname: string): string {
+  return pathname.replace(/^#\/?/, '').replace(/^\//, '').split('?')[0]
+}
+
 export function getTabFromPath(pathname: string): AppTab {
-  const normalized = pathname.replace(/^#\/?/, '').split('?')[0]
+  const normalized = normalizeTabSegment(pathname)
   const route = APP_ROUTES.find((entry) => entry.path.slice(1) === normalized)
   return route?.id ?? DEFAULT_TAB
 }
@@ -111,10 +115,11 @@ export function getPathForTab(tab: AppTab): string {
 
 export function readTabFromLocation(): AppTab {
   if (window.location.pathname.startsWith('/admin')) {
-    const hashPath = window.location.hash.replace(/^#\/?/, '').split('?')[0]
+    const hashPath = normalizeTabSegment(window.location.hash)
     if (!hashPath) {
       return DEFAULT_TAB
     }
+    return getTabFromPath(window.location.hash)
   }
 
   return getTabFromPath(window.location.hash || getPathForTab(DEFAULT_TAB))
@@ -123,7 +128,8 @@ export function readTabFromLocation(): AppTab {
 export function writeTabToLocation(tab: AppTab) {
   ensureAdminPath()
   const path = getPathForTab(tab)
-  if (window.location.hash.replace(/^#\/?/, '').split('?')[0] !== path.slice(1)) {
-    window.location.hash = path
+  const tabSegment = path.slice(1)
+  if (normalizeTabSegment(window.location.hash) !== tabSegment) {
+    window.location.hash = `#/${tabSegment}`
   }
 }

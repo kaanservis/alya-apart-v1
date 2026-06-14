@@ -12,6 +12,7 @@ const ADMIN_TAB_PATHS = [
   'expenses',
   'reports',
   'rooms',
+  'website',
   'settings',
   'backup',
 ]
