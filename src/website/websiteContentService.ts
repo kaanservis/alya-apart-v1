@@ -1,5 +1,4 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import { getDefaultHeroBackgroundUrl } from '../site/heroBackground'
 import type {
   WebsiteGalleryCategory,
   WebsiteGalleryPhoto,
@@ -7,9 +6,23 @@ import type {
   WebsiteSettingsRow,
 } from '../types/database'
 import { DEFAULT_WEBSITE_SETTINGS } from './websiteContentDefaults'
+import { getWebsiteImagePublicUrl, WEBSITE_IMAGES_BUCKET } from './websiteImageService'
+import {
+  EMPTY_WEBSITE_SETTINGS_FORM,
+  WEBSITE_SETTINGS_SELECT,
+  type WebsiteSettingsFormFields,
+} from './websiteSettingsFields'
 
 const SITE_PHOTOS_BUCKET = 'site-photos'
 const SETTINGS_ROW_ID = 'default'
+
+function logWebsiteSettingsQuery(step: string, payload: Record<string, unknown>) {
+  if (!import.meta.env.DEV) {
+    return
+  }
+
+  console.log('[PublicSite]', step, payload)
+}
 
 function isMissingWebsiteContentError(error: { message?: string; code?: string }) {
   const message = error.message?.toLowerCase() ?? ''
@@ -39,6 +52,30 @@ export function getSitePhotoPublicUrl(storagePath: string) {
   return data.publicUrl
 }
 
+export function resolveWebsiteSettingsImageUrl(pathOrUrl: string | null | undefined) {
+  if (!pathOrUrl?.trim()) {
+    return null
+  }
+
+  const value = pathOrUrl.trim()
+
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value
+  }
+
+  const websiteImageUrl = getWebsiteImagePublicUrl(value)
+  if (websiteImageUrl && websiteImageUrl !== value) {
+    return websiteImageUrl
+  }
+
+  if (!isSupabaseConfigured || !supabase) {
+    return value
+  }
+
+  const { data } = supabase.storage.from(SITE_PHOTOS_BUCKET).getPublicUrl(value)
+  return data.publicUrl
+}
+
 function mapGalleryRow(row: WebsiteGalleryRow): WebsiteGalleryPhoto {
   return {
     id: row.id,
@@ -51,43 +88,73 @@ function mapGalleryRow(row: WebsiteGalleryRow): WebsiteGalleryPhoto {
 }
 
 export async function fetchWebsiteSettings(): Promise<WebsiteSettingsRow> {
+  logWebsiteSettingsQuery('Supabase query → website_settings', {
+    table: 'website_settings',
+    select: WEBSITE_SETTINGS_SELECT,
+    filter: { id: SETTINGS_ROW_ID },
+    supabaseConfigured: isSupabaseConfigured,
+  })
+
   if (!isSupabaseConfigured || !supabase) {
+    logWebsiteSettingsQuery('Supabase query skipped (not configured)', {
+      using: 'DEFAULT_WEBSITE_SETTINGS (empty)',
+    })
     return DEFAULT_WEBSITE_SETTINGS
   }
 
   const client = assertSupabaseClient()
   const { data, error } = await client
     .from('website_settings')
-    .select('*')
+    .select(WEBSITE_SETTINGS_SELECT)
     .eq('id', SETTINGS_ROW_ID)
     .maybeSingle()
 
   if (error) {
+    logWebsiteSettingsQuery('Supabase query failed', {
+      message: error.message,
+      code: error.code,
+    })
+
     if (isMissingWebsiteContentError(error)) {
-      return DEFAULT_WEBSITE_SETTINGS
+      throw new Error('website_settings tablosu bulunamadı.')
     }
 
     throw new Error(error.message)
   }
 
   if (!data) {
-    return DEFAULT_WEBSITE_SETTINGS
+    logWebsiteSettingsQuery('Supabase query returned no row', {
+      using: 'DEFAULT_WEBSITE_SETTINGS (empty)',
+    })
+
+    return {
+      ...DEFAULT_WEBSITE_SETTINGS,
+      ...EMPTY_WEBSITE_SETTINGS_FORM,
+    }
   }
 
-  return data as WebsiteSettingsRow
+  const settings = {
+    ...DEFAULT_WEBSITE_SETTINGS,
+    ...(data as WebsiteSettingsFormFields),
+    id: SETTINGS_ROW_ID,
+  }
+
+  logWebsiteSettingsQuery('Supabase query result → website_settings', {
+    site_title: settings.site_title,
+    site_subtitle: settings.site_subtitle,
+    hero_image_path: settings.hero_image_path,
+    phone: settings.phone,
+    whatsapp: settings.whatsapp,
+    address: settings.address,
+  })
+
+  return settings
 }
 
 export async function updateWebsiteSettings(
   patch: Partial<Omit<WebsiteSettingsRow, 'id' | 'created_at' | 'updated_at'>>,
 ): Promise<WebsiteSettingsRow> {
   const client = assertSupabaseClient()
-  const existing = await fetchWebsiteSettings()
-
-  const payload = {
-    ...existing,
-    ...patch,
-    id: SETTINGS_ROW_ID,
-  }
 
   const { data: currentRow } = await client
     .from('website_settings')
@@ -105,7 +172,11 @@ export async function updateWebsiteSettings(
       throw new Error(error.message)
     }
   } else {
-    const { error } = await client.from('website_settings').insert(payload as never)
+    const { error } = await client.from('website_settings').insert({
+      id: SETTINGS_ROW_ID,
+      ...EMPTY_WEBSITE_SETTINGS_FORM,
+      ...patch,
+    } as never)
 
     if (error) {
       throw new Error(error.message)
@@ -246,7 +317,7 @@ export async function uploadHeroImage(file: File): Promise<string> {
   const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const storagePath = `hero/${Date.now()}-${crypto.randomUUID()}.${extension}`
 
-  const uploadResult = await client.storage.from(SITE_PHOTOS_BUCKET).upload(storagePath, file, {
+  const uploadResult = await client.storage.from(WEBSITE_IMAGES_BUCKET).upload(storagePath, file, {
     cacheControl: '3600',
     upsert: false,
     contentType: file.type,
@@ -256,26 +327,13 @@ export async function uploadHeroImage(file: File): Promise<string> {
     throw new Error(uploadResult.error.message)
   }
 
-  await updateWebsiteSettings({ hero_image_path: storagePath })
-  return storagePath
+  const publicUrl = getWebsiteImagePublicUrl(storagePath)
+  await updateWebsiteSettings({ hero_image_path: publicUrl })
+  return publicUrl
 }
 
 export function resolveHeroImageUrl(settings: WebsiteSettingsRow) {
-  if (settings.hero_image_path) {
-    return getSitePhotoPublicUrl(settings.hero_image_path)
-  }
-
-  return null
-}
-
-export function resolveHeroBackgroundUrl(settings: WebsiteSettingsRow) {
-  const customUrl = resolveHeroImageUrl(settings)
-
-  if (customUrl) {
-    return customUrl
-  }
-
-  return getDefaultHeroBackgroundUrl()
+  return resolveWebsiteSettingsImageUrl(settings.hero_image_path)
 }
 
 export function normalizeMapsEmbedValue(value: string) {

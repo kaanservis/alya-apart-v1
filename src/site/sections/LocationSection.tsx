@@ -2,7 +2,24 @@ import { LocationButton } from '../components/SiteActions'
 import { useSiteContent } from '../SiteContentContext'
 
 export function LocationSection() {
-  const { settings, mapsEmbedUrl } = useSiteContent()
+  const { settings, mapsEmbedSrc, loading } = useSiteContent()
+
+  if (loading) {
+    return (
+      <section id="location" className="scroll-mt-20 bg-slate-50 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-2">
+            <div className="space-y-4">
+              <div className="h-4 w-20 animate-pulse rounded bg-slate-200" />
+              <div className="h-10 w-2/3 animate-pulse rounded bg-slate-200" />
+              <div className="h-20 w-full animate-pulse rounded-2xl bg-slate-200" />
+            </div>
+            <div className="h-[360px] animate-pulse rounded-3xl bg-slate-200 sm:h-[480px]" />
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section id="location" className="scroll-mt-20 bg-slate-50 py-16 sm:py-24">
@@ -32,11 +49,11 @@ export function LocationSection() {
             </div>
           </div>
 
-          {mapsEmbedUrl && (
+          {mapsEmbedSrc && (
             <div className="overflow-hidden rounded-3xl shadow-2xl ring-1 ring-slate-200">
               <iframe
                 title={`${settings.site_title} Google Maps konumu`}
-                src={mapsEmbedUrl}
+                src={mapsEmbedSrc}
                 className="h-[360px] w-full border-0 sm:h-[480px] lg:h-[520px]"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"

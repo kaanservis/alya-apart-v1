@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import { getRemainingBalance } from '../reservations/depositCalculations'
@@ -18,14 +19,6 @@ interface WorkflowUnitCardProps {
   onSelect?: () => void
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
 export function WorkflowUnitCard({
   unit,
   activeReservation,
@@ -34,6 +27,7 @@ export function WorkflowUnitCard({
   onUpdated,
   onSelect,
 }: WorkflowUnitCardProps) {
+  const formatCurrency = useFormatAdminCurrency()
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const normalizedStatus = normalizeUnitStatus(unit.status)

@@ -1,8 +1,6 @@
 import { WhatsAppIcon } from '../../components/whatsapp/WhatsAppIcon'
 import { useSiteContent } from '../SiteContentContext'
 
-const DEFAULT_INQUIRY_MESSAGE = 'Merhaba, ALYA APART Avşa konaklama hakkında bilgi almak istiyorum.'
-
 export function FloatingActionButtons() {
   const { phoneHref, getWhatsAppHref } = useSiteContent()
   const whatsappHref = getWhatsAppHref()
@@ -128,7 +126,7 @@ export function LocationButton({
   label?: string
   onClick?: () => void
 }) {
-  const { mapsLink } = useSiteContent()
+  const { settings } = useSiteContent()
 
   if (onClick) {
     return (
@@ -158,7 +156,7 @@ export function LocationButton({
 
   return (
     <a
-      href={mapsLink}
+      href={settings.maps_link}
       target="_blank"
       rel="noreferrer"
       className={`inline-flex items-center justify-center gap-2 rounded-full bg-sky-500/90 px-6 py-3.5 text-sm font-bold text-white shadow-lg backdrop-blur transition hover:bg-sky-600 ${className}`}
@@ -202,4 +200,3 @@ export function InstagramButton({ className = '', label = 'Takip Et' }: { classN
   )
 }
 
-export { DEFAULT_INQUIRY_MESSAGE }

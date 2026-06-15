@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { SlideOverPanel } from '../components/SlideOverPanel'
@@ -18,6 +18,7 @@ import {
 } from '../workflow/unitStatusLogic'
 import { completeCheckout, completeCleaning } from '../workflow/workflowService'
 import { WorkflowStatusBadge } from '../workflow/WorkflowStatusBadge'
+import { logReservationDetail } from './roomDetailLog'
 
 interface RoomDetailPanelProps {
   unit: AccommodationUnit
@@ -38,13 +39,40 @@ export function RoomDetailPanel({
   const [activeReservationState, setActiveReservationState] = useState<Reservation | null>(null)
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const renderCountRef = useRef(0)
+  const loadReservationCallCountRef = useRef(0)
+  const onUpdatedRef = useRef(onUpdated)
+  const activeReservationRef = useRef<Reservation | undefined>(undefined)
+
+  renderCountRef.current += 1
+  if (renderCountRef.current <= 5 || renderCountRef.current % 25 === 0) {
+    logReservationDetail('render', {
+      renderCount: renderCountRef.current,
+      unitId: unit.id,
+      reservationId: activeReservationState?.id ?? null,
+    })
+  }
+
+  useEffect(() => {
+    onUpdatedRef.current = onUpdated
+  }, [onUpdated])
 
   const unitStatus = normalizeUnitStatus(unit.status)
 
   useEffect(() => {
+    let cancelled = false
+    loadReservationCallCountRef.current += 1
+
+    logReservationDetail('loadReservation call', {
+      callCount: loadReservationCallCountRef.current,
+      unitId: unit.id,
+    })
+
     async function loadRoomHistory() {
       if (!isSupabaseConfigured || !supabase) {
-        setRoomHistory(findRoomReservations(reservations, unit.id))
+        if (!cancelled) {
+          setRoomHistory(findRoomReservations(reservations, unit.id))
+        }
         return
       }
 
@@ -53,6 +81,10 @@ export function RoomDetailPanel({
         .select('*')
         .eq('konaklama_birimi_id', unit.id)
         .order('giris_tarihi', { ascending: false })
+
+      if (cancelled) {
+        return
+      }
 
       if (error) {
         setRoomHistory(findRoomReservations(reservations, unit.id))
@@ -63,16 +95,46 @@ export function RoomDetailPanel({
     }
 
     void loadRoomHistory()
-  }, [unit.id, reservations])
+
+    return () => {
+      cancelled = true
+    }
+  }, [unit.id])
 
   const activeReservation = useMemo(
     () => findActiveReservationForUnit(unit.id, reservations),
     [unit.id, reservations],
   )
 
+  activeReservationRef.current = activeReservation
+
   useEffect(() => {
-    setActiveReservationState(activeReservation ?? null)
-  }, [activeReservation])
+    const next = activeReservationRef.current
+    setActiveReservationState((current) => {
+      if (!next) {
+        return null
+      }
+
+      if (!current || current.id !== next.id) {
+        logReservationDetail('sync active reservation → new id', { reservationId: next.id })
+        return next
+      }
+
+      if (current.updated_at === next.updated_at) {
+        return current
+      }
+
+      logReservationDetail('sync active reservation → merge server update', {
+        reservationId: next.id,
+        preserveKisiSayisi: current.kisi_sayisi,
+      })
+
+      return {
+        ...next,
+        kisi_sayisi: current.kisi_sayisi,
+      }
+    })
+  }, [activeReservation?.id, activeReservation?.updated_at])
 
   const lastGuest = useMemo(
     () => findLastGuestForUnit(unit.id, reservations),
@@ -105,20 +167,44 @@ export function RoomDetailPanel({
   const displayedReservation = activeReservationState ?? activeReservation
   const checkoutId = checkoutReservationId ?? displayedReservation?.id
 
-  function handleGuestCountChange(kisiSayisi: number) {
+  const guestSectionReservation = useMemo(() => {
     if (!displayedReservation) {
-      return
+      return null
     }
 
+    return displayedReservation
+  }, [
+    displayedReservation?.id,
+    displayedReservation?.updated_at,
+    displayedReservation?.kisi_sayisi,
+    displayedReservation?.ad_soyad,
+    displayedReservation?.giris_tarihi,
+    displayedReservation?.cikis_tarihi,
+    displayedReservation?.telefon,
+    displayedReservation?.kapora,
+    displayedReservation?.toplam_ucret,
+  ])
+
+  const handleGuestCountChange = useCallback((kisiSayisi: number) => {
     setActiveReservationState((current) => {
-      const base = current ?? displayedReservation
-      if (!base) {
+      if (!current || current.kisi_sayisi === kisiSayisi) {
         return current
       }
 
-      return { ...base, kisi_sayisi: kisiSayisi }
+      logReservationDetail('guest count updated locally', {
+        reservationId: current.id,
+        from: current.kisi_sayisi,
+        to: kisiSayisi,
+      })
+
+      return { ...current, kisi_sayisi: kisiSayisi }
     })
-  }
+  }, [])
+
+  const handleTahsilatUpdated = useCallback((updated: Reservation) => {
+    setActiveReservationState(updated)
+    onUpdatedRef.current()
+  }, [])
 
   async function handleCompleteCheckout() {
     if (!checkoutId) {
@@ -224,10 +310,7 @@ export function RoomDetailPanel({
               </h4>
               <ReservationTahsilatSection
                 reservation={displayedReservation}
-                onUpdated={(updated) => {
-                  setActiveReservationState(updated)
-                  onUpdated()
-                }}
+                onUpdated={handleTahsilatUpdated}
               />
             </div>
             <div className="mt-5 border-t border-purple-100 pt-5">
@@ -238,10 +321,13 @@ export function RoomDetailPanel({
               />
             </div>
             <div className="mt-5 border-t border-purple-100 pt-5">
-              <RoomGuestsSection
-                reservation={displayedReservation}
-                onGuestCountChange={handleGuestCountChange}
-              />
+              {guestSectionReservation && (
+                <RoomGuestsSection
+                  key={guestSectionReservation.id}
+                  reservation={guestSectionReservation}
+                  onGuestCountChange={handleGuestCountChange}
+                />
+              )}
             </div>
           </section>
         ) : unitStatus === 'Temizlik Bekliyor' ? (

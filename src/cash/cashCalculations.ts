@@ -1,3 +1,4 @@
+import { MASKED_MONEY_LABEL } from '../auth/formatMoney'
 import { getRemainingBalance, getTotalCollected } from '../reservations/depositCalculations'
 import { formatTurkeyDateKey } from '../lib/turkeyDate'
 import type { AccommodationUnit, Reservation } from '../types/database'
@@ -50,7 +51,11 @@ export function getFilteredCashSummary(
   return calculateCashSummary(filtered)
 }
 
-export function formatCurrency(value: number) {
+export function formatCurrency(value: number, canViewPrices = true) {
+  if (!canViewPrices) {
+    return MASKED_MONEY_LABEL
+  }
+
   return new Intl.NumberFormat('tr-TR', {
     style: 'currency',
     currency: 'TRY',

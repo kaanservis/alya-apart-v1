@@ -5,9 +5,18 @@ import { PrivateRoomPage } from './pages/PrivateRoomPage'
 import { scrollToSection } from './siteConfig'
 import { SiteContentProvider } from './SiteContentContext'
 import { readSiteLocation, type SiteLocation } from './siteRouter'
+import { siteDebugLog } from './siteDebugLog'
 
 export function SiteApp() {
   const [location, setLocation] = useState<SiteLocation>(() => readSiteLocation())
+
+  useEffect(() => {
+    siteDebugLog('SiteApp → public site mounted', {
+      component: 'SiteApp',
+      file: 'src/site/SiteApp.tsx',
+      wrapsWith: 'SiteContentProvider (loads website_settings from Supabase)',
+    })
+  }, [])
 
   useEffect(() => {
     function handlePopState() {

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import type { AccommodationUnit, Reservation } from '../types/database'
+import { useAuth } from '../auth/AuthContext'
 import { PaymentBreakdown } from '../components/PaymentBreakdown'
 import { SlideOverPanel } from '../components/SlideOverPanel'
+import type { AccommodationUnit, Reservation } from '../types/database'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
 import { getRemainingBalance } from '../reservations/depositCalculations'
 import { formatReservationDate } from '../reservations/reservationDisplay'
@@ -32,6 +33,10 @@ export function CustomerDetailPanel({
   onUpdated,
   unitMap,
 }: CustomerDetailPanelProps) {
+  const { hasPermission } = useAuth()
+  const canChangeDates = hasPermission('can_change_dates')
+  const canDeleteReservations = hasPermission('can_delete_reservations')
+
   const [mode, setMode] = useState<ActionMode>('view')
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -263,8 +268,9 @@ export function CustomerDetailPanel({
                   <input
                     type="date"
                     value={checkIn}
+                    readOnly={!canChangeDates}
                     onChange={(event) => setCheckIn(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
+                    className={`w-full rounded-xl border border-slate-300 px-3 py-2.5${!canChangeDates ? ' cursor-not-allowed bg-slate-100' : ''}`}
                   />
                 </label>
                 <label className="block text-sm">
@@ -272,8 +278,9 @@ export function CustomerDetailPanel({
                   <input
                     type="date"
                     value={checkOut}
+                    readOnly={!canChangeDates}
                     onChange={(event) => setCheckOut(event.target.value)}
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5"
+                    className={`w-full rounded-xl border border-slate-300 px-3 py-2.5${!canChangeDates ? ' cursor-not-allowed bg-slate-100' : ''}`}
                   />
                 </label>
               </div>
@@ -304,23 +311,27 @@ export function CustomerDetailPanel({
               >
                 Oda Değiştir
               </button>
-              <button
-                type="button"
-                onClick={() => setMode('changeDates')}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
-              >
-                Tarih Değiştir
-              </button>
-              <button
-                type="button"
-                disabled={processing}
-                onClick={handleDelete}
-                className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${
-                  confirmDelete ? 'bg-red-700' : 'bg-red-600'
-                }`}
-              >
-                {processing ? 'Siliniyor...' : confirmDelete ? 'Silmeyi Onayla' : 'Sil'}
-              </button>
+              {canChangeDates && (
+                <button
+                  type="button"
+                  onClick={() => setMode('changeDates')}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                >
+                  Tarih Değiştir
+                </button>
+              )}
+              {canDeleteReservations && (
+                <button
+                  type="button"
+                  disabled={processing}
+                  onClick={handleDelete}
+                  className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${
+                    confirmDelete ? 'bg-red-700' : 'bg-red-600'
+                  }`}
+                >
+                  {processing ? 'Siliniyor...' : confirmDelete ? 'Silmeyi Onayla' : 'Sil'}
+                </button>
+              )}
             </div>
           )}
         </div>

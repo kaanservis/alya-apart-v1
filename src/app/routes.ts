@@ -11,6 +11,7 @@ export type AppTab =
   | 'website'
   | 'settings'
   | 'backup'
+  | 'users'
 
 export interface AppRoute {
   id: AppTab
@@ -85,6 +86,12 @@ export const APP_ROUTES: AppRoute[] = [
     path: '/settings',
     label: 'Ayarlar',
     menuLabel: 'Ayarlar',
+  },
+  {
+    id: 'users',
+    path: '/users',
+    label: 'Kullanıcı Yönetimi',
+    menuLabel: 'Kullanıcı Yönetimi',
   },
   {
     id: 'backup',

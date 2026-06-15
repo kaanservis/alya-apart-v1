@@ -10,6 +10,7 @@ import {
   type CustomerStatusFilter,
 } from './customerListUtils'
 import { useCustomersPage } from './useCustomersPage'
+import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 
 interface CustomersPageProps {
   refreshToken: number
@@ -21,14 +22,6 @@ const STATUS_FILTERS: { value: CustomerStatusFilter; label: string }[] = [
   { value: 'aktif', label: 'Aktif' },
   { value: 'gecmis', label: 'Geçmiş' },
 ]
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 2,
-  }).format(value)
-}
 
 interface CustomerRowContentProps {
   row: CustomerListRow
@@ -50,6 +43,7 @@ function StatusBadge({ status }: { status: CustomerListRow['reservation']['durum
 
 function CustomerMobileCard({ row, selected, onSelect }: CustomerRowContentProps) {
   const { reservation, unitName } = row
+  const formatCurrency = useFormatAdminCurrency()
 
   return (
     <button
@@ -112,6 +106,7 @@ export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
     unitMap,
   } = useCustomersPage(refreshToken)
 
+  const formatCurrency = useFormatAdminCurrency()
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const selectedReservation = rows.find((row) => row.reservation.id === selectedId)?.reservation

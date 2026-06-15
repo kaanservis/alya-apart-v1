@@ -1,4 +1,5 @@
 import type { ActiveReservationRow } from './types'
+import { useAuth } from '../auth/AuthContext'
 import { formatCurrency, formatDate } from './cashCalculations'
 
 interface ActiveReservationsSectionProps {
@@ -6,6 +7,8 @@ interface ActiveReservationsSectionProps {
 }
 
 export function ActiveReservationsSection({ rows }: ActiveReservationsSectionProps) {
+  const { hasPermission } = useAuth()
+  const canViewPrices = hasPermission('can_view_prices')
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 px-5 py-4">
@@ -40,10 +43,14 @@ export function ActiveReservationsSection({ rows }: ActiveReservationsSectionPro
                   <td className="px-4 py-3 text-slate-700">{row.unitName}</td>
                   <td className="px-4 py-3 text-slate-700">{formatDate(row.girisTarihi)}</td>
                   <td className="px-4 py-3 text-slate-700">{formatDate(row.cikisTarihi)}</td>
-                  <td className="px-4 py-3 text-slate-900">{formatCurrency(row.toplamUcret)}</td>
-                  <td className="px-4 py-3 text-emerald-700">{formatCurrency(row.alinanUcret)}</td>
+                  <td className="px-4 py-3 text-slate-900">
+                    {formatCurrency(row.toplamUcret, canViewPrices)}
+                  </td>
+                  <td className="px-4 py-3 text-emerald-700">
+                    {formatCurrency(row.alinanUcret, canViewPrices)}
+                  </td>
                   <td className="px-4 py-3 font-medium text-amber-700">
-                    {formatCurrency(row.kalanBakiye)}
+                    {formatCurrency(row.kalanBakiye, canViewPrices)}
                   </td>
                 </tr>
               ))}

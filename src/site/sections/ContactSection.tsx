@@ -2,7 +2,22 @@ import { CallButton, InstagramButton, WhatsAppButton } from '../components/SiteA
 import { useSiteContent } from '../SiteContentContext'
 
 export function ContactSection() {
-  const { settings, phoneHref } = useSiteContent()
+  const { settings, phoneHref, loading } = useSiteContent()
+
+  if (loading) {
+    return (
+      <section id="contact" className="scroll-mt-20 bg-gradient-to-b from-slate-50 to-white py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto h-8 w-40 animate-pulse rounded-lg bg-slate-200" />
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-48 animate-pulse rounded-3xl bg-slate-200" />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section id="contact" className="scroll-mt-20 bg-gradient-to-b from-slate-50 to-white py-16 sm:py-24">

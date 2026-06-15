@@ -1,4 +1,5 @@
 import type { ExpenseStatistics } from './types'
+import { useAuth } from '../auth/AuthContext'
 import { formatCurrency } from './expenseCalculations'
 
 interface ExpenseStatisticsCardsProps {
@@ -12,6 +13,9 @@ const cards = [
 ]
 
 export function ExpenseStatisticsCards({ statistics }: ExpenseStatisticsCardsProps) {
+  const { hasPermission } = useAuth()
+  const canViewPrices = hasPermission('can_view_prices')
+
   return (
     <section className="grid gap-4 md:grid-cols-3">
       {cards.map((card) => (
@@ -21,7 +25,7 @@ export function ExpenseStatisticsCards({ statistics }: ExpenseStatisticsCardsPro
         >
           <p className="text-sm font-medium text-slate-500">{card.label}</p>
           <p className="mt-2 text-3xl font-bold text-slate-900">
-            {formatCurrency(statistics[card.key])}
+            {formatCurrency(statistics[card.key], canViewPrices)}
           </p>
         </div>
       ))}

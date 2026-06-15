@@ -30,6 +30,63 @@ async function testTable(client, table) {
   return error?.message ?? null
 }
 
+const APARTMENT_COLUMNS =
+  'id,name,description,cover_image,feature_near_sea,feature_wifi,feature_ac,feature_kitchen,feature_balcony,feature_family_friendly,sort_order,created_at,updated_at'
+
+async function testApartments(client) {
+  const { data, error, status } = await client
+    .from('apartments')
+    .select(APARTMENT_COLUMNS)
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true })
+
+  if (error) {
+    return { ok: false, message: error.message, count: 0 }
+  }
+
+  return {
+    ok: true,
+    message: null,
+    count: data?.length ?? 0,
+    status,
+    sample: (data ?? []).slice(0, 3).map((row) => `${row.id}:${row.name}`),
+  }
+}
+
+async function testApartmentUpdate(client) {
+  const { data: rows, error: readError } = await client.from('apartments').select('id').limit(1)
+
+  if (readError || !rows?.[0]?.id) {
+    return { ok: false, message: readError?.message ?? 'no apartment rows to test update against' }
+  }
+
+  const apartmentId = Number(rows[0].id)
+  const probeValue = `rls-probe-${Date.now()}`
+
+  const { data, error, status } = await client
+    .from('apartments')
+    .update({ cover_image: probeValue })
+    .eq('id', apartmentId)
+    .select('id,cover_image')
+
+  if (error) {
+    return { ok: false, message: `UPDATE failed: ${error.message}`, apartmentId, status }
+  }
+
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      message: 'UPDATE returned 0 rows — run 023_apartments_update_rls.sql',
+      apartmentId,
+      status,
+    }
+  }
+
+  await client.from('apartments').update({ cover_image: null }).eq('id', apartmentId)
+
+  return { ok: true, message: null, apartmentId, status }
+}
+
 async function main() {
   const envPath = resolve(process.cwd(), '.env')
   const env = loadEnvFile(envPath)
@@ -66,6 +123,29 @@ async function main() {
     } else {
       console.log(`OK: ${table}`)
     }
+  }
+
+  const apartmentsResult = await testApartments(client)
+
+  if (!apartmentsResult.ok) {
+    failed = true
+    console.error(`FAIL: apartments — ${apartmentsResult.message}`)
+  } else if (apartmentsResult.count === 0) {
+    failed = true
+    console.error('FAIL: apartments — query succeeded but returned 0 rows (check RLS SELECT policy)')
+  } else {
+    console.log(`OK: apartments (${apartmentsResult.count} rows: ${apartmentsResult.sample.join(', ')})`)
+  }
+
+  const updateResult = await testApartmentUpdate(client)
+
+  if (!updateResult.ok) {
+    failed = true
+    console.error(
+      `FAIL: apartments UPDATE (id=${updateResult.apartmentId ?? '?'}) — ${updateResult.message}`,
+    )
+  } else {
+    console.log(`OK: apartments UPDATE (id=${updateResult.apartmentId})`)
   }
 
   if (failed) {

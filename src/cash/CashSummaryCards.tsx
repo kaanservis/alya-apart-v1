@@ -1,4 +1,5 @@
 import type { CashSummary } from './types'
+import { useAuth } from '../auth/AuthContext'
 import { formatCurrency } from './cashCalculations'
 
 interface CashSummaryCardsProps {
@@ -24,12 +25,17 @@ const cards = [
 ]
 
 export function CashSummaryCards({ summary }: CashSummaryCardsProps) {
+  const { hasPermission } = useAuth()
+  const canViewPrices = hasPermission('can_view_prices')
+
   return (
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((card) => (
         <div key={card.key} className={`rounded-2xl border p-5 shadow-sm ${card.className}`}>
           <p className="text-sm font-medium opacity-80">{card.label}</p>
-          <p className="mt-2 text-3xl font-bold">{formatCurrency(summary[card.key])}</p>
+          <p className="mt-2 text-3xl font-bold">
+            {formatCurrency(summary[card.key], canViewPrices)}
+          </p>
         </div>
       ))}
     </section>

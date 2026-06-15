@@ -7,16 +7,20 @@ export function WebsiteManagementPage() {
     activeTab,
     setActiveTab,
     generalForm,
+    heroPreviewUrl,
     apartments,
+    apartmentLoadMeta,
     loading,
     saving,
     error,
     message,
+    refetch,
     updateGeneralField,
     updateApartmentField,
     saveAll,
     stageCoverPhoto,
     stageGalleryPhotos,
+    stageHeroPhoto,
     markGalleryPhotoForDeletion,
   } = useWebsiteManagement()
 
@@ -44,7 +48,7 @@ export function WebsiteManagementPage() {
           Genel Bilgiler
         </button>
 
-        {apartments?.map((profile) => {
+        {apartments.map((profile) => {
           const isActive = activeTab === profile.apartment.id
 
           return (
@@ -71,6 +75,32 @@ export function WebsiteManagementPage() {
         </div>
       )}
 
+      {!loading && apartments.length === 0 && !error && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Apart sekmeleri yüklenemedi.</p>
+          <p className="mt-1">
+            Supabase sorgusu{' '}
+            {apartmentLoadMeta.rawCount === null
+              ? 'tamamlanamadı'
+              : `${apartmentLoadMeta.rawCount} kayıt döndürdü`}
+            . Veritabanında kayıt varsa sayfayı sert yenileyin (Ctrl+Shift+R) veya geliştirme
+            sunucusunu yeniden başlatın.
+          </p>
+          <p className="mt-1 text-xs text-amber-800">
+            Supabase yapılandırması: {apartmentLoadMeta.configured ? 'aktif' : 'eksik (.env kontrol edin)'}
+            {' · '}
+            Konsol filtresi: <code>[WebsiteManagement/apartments]</code>
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-3 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-950 ring-1 ring-amber-300 hover:bg-amber-200"
+          >
+            Yeniden yükle
+          </button>
+        </div>
+      )}
+
       {!loading && error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
@@ -86,10 +116,16 @@ export function WebsiteManagementPage() {
       {!loading && (
         <>
           {activeTab === 'general' && (
-            <GeneralInfoTab form={generalForm} onFieldChange={updateGeneralField} />
+            <GeneralInfoTab
+              form={generalForm}
+              heroPreviewUrl={heroPreviewUrl}
+              saving={saving}
+              onFieldChange={updateGeneralField}
+              onHeroSelect={stageHeroPhoto}
+            />
           )}
 
-          {apartments?.map(
+          {apartments.map(
             (profile) =>
               activeTab === profile.apartment.id && (
                 <ApartmentEditorTab
@@ -107,12 +143,6 @@ export function WebsiteManagementPage() {
                   }
                 />
               ),
-          )}
-
-          {!loading && apartments && apartments.length === 0 && activeTab !== 'general' && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Supabase&apos;de kayıtlı apart bulunamadı.
-            </div>
           )}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

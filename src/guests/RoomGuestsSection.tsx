@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
+import { maskTcNumber } from '../auth/formatMoney'
 import type { GuestPhoto, Reservation } from '../types/database'
 import {
   computeTotalGuestCount,
@@ -9,6 +11,7 @@ import {
   isGuestReservationOwner,
   updateGuestEntry,
 } from './guestService'
+import { logGuestSection } from './guestSectionLog'
 import type { GuestEntryWithPhotos } from './guestTypes'
 import { GuestPhotoUpload } from './GuestPhotoUpload'
 
@@ -43,6 +46,10 @@ function guestToForm(guest: GuestEntryWithPhotos): GuestFormState {
 }
 
 export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuestsSectionProps) {
+  const { hasPermission } = useAuth()
+  const canViewCustomerTc = hasPermission('can_view_customer_tc')
+  const canUploadPhotos = hasPermission('can_upload_photos')
+
   const [guests, setGuests] = useState<GuestEntryWithPhotos[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,27 +63,105 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
   const [deleting, setDeleting] = useState(false)
   const [highlightGuestId, setHighlightGuestId] = useState<string | null>(null)
   const fullNameInputRef = useRef<HTMLInputElement>(null)
+  const onGuestCountChangeRef = useRef(onGuestCountChange)
+  const loadGenerationRef = useRef(0)
+  const loadGuestsCallCountRef = useRef(0)
+  const renderCountRef = useRef(0)
+  const lastNotifiedKisiRef = useRef<number | null>(null)
+  const hasLoadedOnceRef = useRef(false)
+
+  renderCountRef.current += 1
+  if (renderCountRef.current <= 5 || renderCountRef.current % 25 === 0) {
+    logGuestSection('render', {
+      renderCount: renderCountRef.current,
+      reservationId: reservation.id,
+      loading,
+      showForm,
+      guestCount: guests.length,
+    })
+  }
+
+  useEffect(() => {
+    onGuestCountChangeRef.current = onGuestCountChange
+  }, [onGuestCountChange])
+
+  useEffect(() => {
+    lastNotifiedKisiRef.current = null
+    hasLoadedOnceRef.current = false
+    logGuestSection('mounted', { reservationId: reservation.id })
+    return () => logGuestSection('unmounted', { reservationId: reservation.id })
+  }, [reservation.id])
 
   const totalGuestCount = useMemo(() => computeTotalGuestCount(guests.length), [guests.length])
 
-  const loadGuests = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const entries = await fetchGuestEntriesForReservation(reservation.id)
-      setGuests(entries)
-      onGuestCountChange?.(computeTotalGuestCount(entries.length))
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Misafir kayıtları yüklenemedi.')
-    } finally {
-      setLoading(false)
+  const notifyGuestCountChange = useCallback((entryCount: number) => {
+    const kisiSayisi = computeTotalGuestCount(entryCount)
+    if (lastNotifiedKisiRef.current === kisiSayisi) {
+      return
     }
-  }, [onGuestCountChange, reservation.id])
+
+    lastNotifiedKisiRef.current = kisiSayisi
+    logGuestSection('notifyGuestCountChange', { entryCount, kisiSayisi })
+    onGuestCountChangeRef.current?.(kisiSayisi)
+  }, [])
 
   useEffect(() => {
-    void loadGuests()
-  }, [loadGuests])
+    const reservationId = reservation.id
+    let cancelled = false
+    const generation = loadGenerationRef.current + 1
+    loadGenerationRef.current = generation
+    loadGuestsCallCountRef.current += 1
+
+    logGuestSection('loadGuests call', {
+      callCount: loadGuestsCallCountRef.current,
+      generation,
+      reservationId,
+    })
+
+    if (!hasLoadedOnceRef.current) {
+      setLoading(true)
+    }
+    setError(null)
+
+    void (async () => {
+      try {
+        const entries = await fetchGuestEntriesForReservation(reservationId)
+
+        if (cancelled || generation !== loadGenerationRef.current) {
+          logGuestSection('loadGuests → skipped stale response', { generation, reservationId })
+          return
+        }
+
+        setGuests(entries)
+        notifyGuestCountChange(entries.length)
+        hasLoadedOnceRef.current = true
+        logGuestSection('loadGuests → success', {
+          callCount: loadGuestsCallCountRef.current,
+          generation,
+          entryCount: entries.length,
+        })
+      } catch (loadError) {
+        if (cancelled || generation !== loadGenerationRef.current) {
+          return
+        }
+
+        setError(loadError instanceof Error ? loadError.message : 'Misafir kayıtları yüklenemedi.')
+        logGuestSection('loadGuests → failed', {
+          callCount: loadGuestsCallCountRef.current,
+          generation,
+          error: loadError instanceof Error ? loadError.message : String(loadError),
+        })
+      } finally {
+        if (!cancelled && generation === loadGenerationRef.current) {
+          setLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [notifyGuestCountChange, reservation.id])
 
   useEffect(() => {
     if (!success) {
@@ -95,16 +180,17 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
     const timer = window.setTimeout(() => {
       document.getElementById(`guest-entry-${highlightGuestId}`)?.scrollIntoView({
         behavior: 'smooth',
-        block: 'center',
+        block: 'nearest',
       })
       setHighlightGuestId(null)
     }, 100)
 
     return () => window.clearTimeout(timer)
-  }, [highlightGuestId, guests])
+  }, [highlightGuestId])
 
   async function handleSaveGuest(event: React.FormEvent) {
     event.preventDefault()
+    logGuestSection('handleSaveGuest → submit', { reservationId: reservation.id })
 
     if (!form.fullName.trim()) {
       setError('Ad Soyad zorunludur.')
@@ -124,15 +210,24 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
         notes: form.notes,
       })
 
-      setGuests((current) => [...current, newGuest])
-      onGuestCountChange?.(computeTotalGuestCount(guests.length + 1))
+      setGuests((current) => {
+        const nextGuests = [...current, newGuest]
+        notifyGuestCountChange(nextGuests.length)
+        return nextGuests
+      })
       setForm(EMPTY_FORM)
       setShowForm(true)
       setSuccess(GUEST_SAVE_SUCCESS_MESSAGE)
       setHighlightGuestId(newGuest.id)
-      fullNameInputRef.current?.focus()
+      window.requestAnimationFrame(() => {
+        fullNameInputRef.current?.focus()
+      })
+      logGuestSection('handleSaveGuest → success', { guestId: newGuest.id })
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Misafir kaydedilemedi.')
+      logGuestSection('handleSaveGuest → failed', {
+        error: saveError instanceof Error ? saveError.message : String(saveError),
+      })
     } finally {
       setSaving(false)
     }
@@ -193,7 +288,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
       await deleteGuestEntry(guestId, reservation.id)
       setGuests((current) => {
         const nextGuests = current.filter((guest) => guest.id !== guestId)
-        onGuestCountChange?.(computeTotalGuestCount(nextGuests.length))
+        notifyGuestCountChange(nextGuests.length)
         return nextGuests
       })
       setDeleteConfirmGuestId(null)
@@ -228,7 +323,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
     }
   }
 
-  function handlePhotoUploaded(uploadedPhoto: GuestPhoto) {
+  const handlePhotoUploaded = useCallback((uploadedPhoto: GuestPhoto) => {
     setGuests((current) =>
       current.map((guest) =>
         guest.id === uploadedPhoto.guest_entry_id
@@ -243,7 +338,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
       ),
     )
     setError(null)
-  }
+  }, [])
 
   function startEditing(guest: GuestEntryWithPhotos) {
     setEditingGuestId(guest.id)
@@ -280,7 +375,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
         </div>
       )}
 
-      {loading ? (
+      {loading && guests.length === 0 ? (
         <p className="mt-4 text-sm text-slate-600">Misafir kayıtları yükleniyor...</p>
       ) : guests.length === 0 ? (
         <p className="mt-4 text-sm text-slate-600">Henüz ek misafir kaydı yok.</p>
@@ -330,7 +425,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
                           {guest.tc_no && (
                             <div>
                               <dt className="inline font-medium">TC: </dt>
-                              <dd className="inline">{guest.tc_no}</dd>
+                              <dd className="inline">{maskTcNumber(guest.tc_no, canViewCustomerTc)}</dd>
                             </div>
                           )}
                           {guest.phone && (
@@ -399,6 +494,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
                       reservationId={reservation.id}
                       photoType="front_id"
                       capture
+                      disabled={!canUploadPhotos}
                       existingPhoto={guest.photos.find((photo) => photo.photo_type === 'front_id') ?? null}
                       onUploaded={handlePhotoUploaded}
                       onDelete={handleConfirmDeletePhoto}
@@ -409,6 +505,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
                       reservationId={reservation.id}
                       photoType="back_id"
                       capture
+                      disabled={!canUploadPhotos}
                       existingPhoto={guest.photos.find((photo) => photo.photo_type === 'back_id') ?? null}
                       onUploaded={handlePhotoUploaded}
                       onDelete={handleConfirmDeletePhoto}
@@ -418,6 +515,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
                       guestEntryId={guest.id}
                       reservationId={reservation.id}
                       photoType="guest_photo"
+                      disabled={!canUploadPhotos}
                       existingPhoto={guest.photos.find((photo) => photo.photo_type === 'guest_photo') ?? null}
                       onUploaded={handlePhotoUploaded}
                       onDelete={handleConfirmDeletePhoto}
@@ -435,6 +533,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
         <button
           type="button"
           onClick={() => {
+            logGuestSection('Misafir Ekle clicked')
             setShowForm(true)
             setEditingGuestId(null)
             setDeleteConfirmGuestId(null)
@@ -446,7 +545,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
         </button>
       ) : (
         <form
-          onSubmit={handleSaveGuest}
+          onSubmit={(event) => void handleSaveGuest(event)}
           className="mt-4 space-y-3 rounded-xl border border-indigo-100 bg-white p-4"
         >
           <GuestFormFields

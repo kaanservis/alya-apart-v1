@@ -2,22 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ApartmentId, ApartmentPhoto, ApartmentProfile, ApartmentRow } from '../types/database'
 import {
   deleteApartmentPhoto,
-  fetchApartmentProfiles,
+  fetchApartmentProfilesWithMeta,
   saveApartmentProfiles,
   uploadApartmentCoverPhoto,
   uploadApartmentGalleryPhotos,
 } from '../website/apartmentService'
-import { fetchWebsiteSettings, updateWebsiteSettings } from '../website/websiteContentService'
+import { debugApartmentConnection, normalizeApartmentIdForQuery } from '../website/apartmentRepository'
+import {
+  EMPTY_WEBSITE_SETTINGS_FORM,
+  pickWebsiteSettingsFormFields,
+  type WebsiteSettingsFormFields,
+} from '../website/websiteSettingsFields'
+import { fetchWebsiteSettings, updateWebsiteSettings, uploadHeroImage } from '../website/websiteContentService'
+import { logApartmentLoad, logApartmentLoadError } from '../website/apartmentLoadLog'
 
-export interface GeneralInfoForm {
-  siteTitle: string
-  subtitle: string
-  phone: string
-  whatsapp: string
-  instagram: string
-  mapsLink: string
-  address: string
-}
+export type GeneralInfoForm = WebsiteSettingsFormFields
 
 export type WebsiteManagementTab = 'general' | ApartmentId
 
@@ -29,26 +28,10 @@ export interface PendingGalleryPhoto {
 
 const SAVE_SUCCESS_MESSAGE = 'Web sitesi bilgileri kaydedildi.'
 
-const EMPTY_GENERAL_FORM: GeneralInfoForm = {
-  siteTitle: '',
-  subtitle: '',
-  phone: '',
-  whatsapp: '',
-  instagram: '',
-  mapsLink: '',
-  address: '',
-}
-
-function mapSettingsToGeneralForm(settings: Awaited<ReturnType<typeof fetchWebsiteSettings>>): GeneralInfoForm {
-  return {
-    siteTitle: settings.site_title,
-    subtitle: settings.site_subtitle,
-    phone: settings.phone,
-    whatsapp: settings.whatsapp,
-    instagram: settings.instagram,
-    mapsLink: settings.maps_link,
-    address: settings.address,
-  }
+export interface ApartmentLoadMeta {
+  configured: boolean
+  rawCount: number | null
+  profileCount: number
 }
 
 function buildDisplayProfile(
@@ -79,16 +62,23 @@ function buildDisplayProfile(
 
 export function useWebsiteManagement() {
   const [activeTab, setActiveTab] = useState<WebsiteManagementTab>('general')
-  const [generalForm, setGeneralForm] = useState<GeneralInfoForm>(EMPTY_GENERAL_FORM)
-  const [apartments, setApartments] = useState<ApartmentProfile[] | null>(null)
+  const [generalForm, setGeneralForm] = useState<GeneralInfoForm>(EMPTY_WEBSITE_SETTINGS_FORM)
+  const [apartments, setApartments] = useState<ApartmentProfile[]>([])
   const [pendingCoverFiles, setPendingCoverFiles] = useState<Record<number, File | null>>({})
   const [pendingCoverPreviews, setPendingCoverPreviews] = useState<Record<number, string | null>>({})
   const [pendingGallery, setPendingGallery] = useState<Record<number, PendingGalleryPhoto[]>>({})
   const [pendingDeletes, setPendingDeletes] = useState<Record<number, { id: number; photoUrl: string }[]>>({})
+  const [pendingHeroFile, setPendingHeroFile] = useState<File | null>(null)
+  const [pendingHeroPreview, setPendingHeroPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [apartmentLoadMeta, setApartmentLoadMeta] = useState<ApartmentLoadMeta>({
+    configured: false,
+    rawCount: null,
+    profileCount: 0,
+  })
   const [refreshToken, setRefreshToken] = useState(0)
 
   const refetch = useCallback(() => {
@@ -112,8 +102,15 @@ export function useWebsiteManagement() {
       }
       return {}
     })
+    setPendingHeroPreview((current) => {
+      if (current) {
+        URL.revokeObjectURL(current)
+      }
+      return null
+    })
     setPendingCoverFiles({})
     setPendingDeletes({})
+    setPendingHeroFile(null)
   }, [])
 
   useEffect(() => {
@@ -122,16 +119,62 @@ export function useWebsiteManagement() {
       setError(null)
 
       try {
-        const [settings, apartmentProfiles] = await Promise.all([
-          fetchWebsiteSettings(),
-          fetchApartmentProfiles(),
-        ])
+        let settingsError: string | null = null
+        let apartmentsError: string | null = null
 
-        setGeneralForm(mapSettingsToGeneralForm(settings))
-        setApartments(apartmentProfiles)
+        try {
+          const settings = await fetchWebsiteSettings()
+          setGeneralForm(pickWebsiteSettingsFormFields(settings))
+        } catch (loadError) {
+          settingsError =
+            loadError instanceof Error ? loadError.message : 'Genel bilgiler yüklenemedi.'
+        }
+
+        try {
+          logApartmentLoad('useWebsiteManagement loadContent → fetching apartments')
+          const connection = await debugApartmentConnection()
+          const { profiles: apartmentProfiles, rawCount } = await fetchApartmentProfilesWithMeta()
+          setApartments(apartmentProfiles)
+          setApartmentLoadMeta({
+            configured: connection.supabaseConfigured,
+            rawCount,
+            profileCount: apartmentProfiles.length,
+          })
+          logApartmentLoad('useWebsiteManagement loadContent → apartments state updated', {
+            count: apartmentProfiles.length,
+            rawCount,
+            configured: connection.supabaseConfigured,
+          })
+        } catch (loadError) {
+          logApartmentLoadError('useWebsiteManagement loadContent → apartment load failed', loadError)
+          apartmentsError =
+            loadError instanceof Error ? loadError.message : 'Apart bilgileri yüklenemedi.'
+          setApartments([])
+          setApartmentLoadMeta({
+            configured: Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY),
+            rawCount: null,
+            profileCount: 0,
+          })
+        }
+
         clearPendingState()
+
+        if (settingsError && apartmentsError) {
+          setError(`${settingsError} / ${apartmentsError}`)
+        } else if (apartmentsError) {
+          setError(apartmentsError)
+        } else if (settingsError) {
+          setError(settingsError)
+        } else {
+          setError(null)
+        }
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'İçerik yüklenemedi.')
+        const message = loadError instanceof Error ? loadError.message : 'İçerik yüklenemedi.'
+        console.error('[WebsiteManagement] loadContent failed', {
+          file: 'src/website-admin/useWebsiteManagement.ts',
+          error: message,
+        })
+        setError(message)
       } finally {
         setLoading(false)
       }
@@ -141,10 +184,6 @@ export function useWebsiteManagement() {
   }, [refreshToken, clearPendingState])
 
   const displayApartments = useMemo(() => {
-    if (!apartments) {
-      return null
-    }
-
     return apartments.map((profile) =>
       buildDisplayProfile(
         profile,
@@ -155,8 +194,23 @@ export function useWebsiteManagement() {
     )
   }, [apartments, pendingCoverPreviews, pendingGallery, pendingDeletes])
 
+  const heroPreviewUrl =
+    pendingHeroPreview ??
+    (generalForm.hero_image_path?.trim() ? generalForm.hero_image_path : null)
+
   function updateGeneralField<K extends keyof GeneralInfoForm>(key: K, value: GeneralInfoForm[K]) {
     setGeneralForm((current) => ({ ...current, [key]: value }))
+    setMessage(null)
+  }
+
+  function stageHeroPhoto(file: File) {
+    setPendingHeroPreview((current) => {
+      if (current) {
+        URL.revokeObjectURL(current)
+      }
+      return URL.createObjectURL(file)
+    })
+    setPendingHeroFile(file)
     setMessage(null)
   }
 
@@ -186,18 +240,20 @@ export function useWebsiteManagement() {
   }
 
   function stageCoverPhoto(apartmentId: ApartmentId, file: File) {
+    const numericId = normalizeApartmentIdForQuery(apartmentId)
+
     setPendingCoverPreviews((current) => {
-      const previous = current[apartmentId]
+      const previous = current[numericId]
       if (previous) {
         URL.revokeObjectURL(previous)
       }
 
       return {
         ...current,
-        [apartmentId]: URL.createObjectURL(file),
+        [numericId]: URL.createObjectURL(file),
       }
     })
-    setPendingCoverFiles((current) => ({ ...current, [apartmentId]: file }))
+    setPendingCoverFiles((current) => ({ ...current, [numericId]: file }))
     setMessage(null)
   }
 
@@ -250,7 +306,7 @@ export function useWebsiteManagement() {
   }
 
   async function saveAll() {
-    if (!apartments) {
+    if (apartments.length === 0) {
       return
     }
 
@@ -260,9 +316,18 @@ export function useWebsiteManagement() {
 
     try {
       let nextApartments = [...apartments]
+      let nextGeneralForm = { ...generalForm }
+
+      if (pendingHeroFile) {
+        const heroImageUrl = await uploadHeroImage(pendingHeroFile)
+        nextGeneralForm = {
+          ...nextGeneralForm,
+          hero_image_path: heroImageUrl,
+        }
+      }
 
       for (const profile of apartments) {
-        const apartmentId = profile.apartment.id
+        const apartmentId = normalizeApartmentIdForQuery(profile.apartment.id)
 
         for (const photo of pendingDeletes[apartmentId] ?? []) {
           await deleteApartmentPhoto(photo.id, photo.photoUrl)
@@ -283,16 +348,16 @@ export function useWebsiteManagement() {
 
         const coverFile = pendingCoverFiles[apartmentId]
         if (coverFile) {
-          const coverPhotoUrl = await uploadApartmentCoverPhoto(apartmentId, coverFile)
+          const { storagePath, publicUrl } = await uploadApartmentCoverPhoto(apartmentId, coverFile)
           nextApartments = nextApartments.map((entry) =>
             entry.apartment.id === apartmentId
               ? {
                   ...entry,
                   apartment: {
                     ...entry.apartment,
-                    cover_image: coverPhotoUrl,
+                    cover_image: storagePath,
                   },
-                  coverUrl: coverPhotoUrl,
+                  coverUrl: publicUrl,
                 }
               : entry,
           )
@@ -312,17 +377,10 @@ export function useWebsiteManagement() {
         }
       }
 
-      await updateWebsiteSettings({
-        site_title: generalForm.siteTitle,
-        site_subtitle: generalForm.subtitle,
-        phone: generalForm.phone,
-        whatsapp: generalForm.whatsapp,
-        instagram: generalForm.instagram,
-        maps_link: generalForm.mapsLink,
-        address: generalForm.address,
-      })
-
+      await updateWebsiteSettings(nextGeneralForm)
       await saveApartmentProfiles(nextApartments.map((profile) => profile.apartment))
+
+      setGeneralForm(nextGeneralForm)
       setApartments(nextApartments)
       clearPendingState()
       setMessage(SAVE_SUCCESS_MESSAGE)
@@ -338,16 +396,20 @@ export function useWebsiteManagement() {
     activeTab,
     setActiveTab,
     generalForm,
+    heroPreviewUrl,
     apartments: displayApartments,
+    apartmentLoadMeta,
     loading,
     saving,
     error,
     message,
+    refetch,
     updateGeneralField,
     updateApartmentField,
     saveAll,
     stageCoverPhoto,
     stageGalleryPhotos,
+    stageHeroPhoto,
     markGalleryPhotoForDeletion,
   }
 }

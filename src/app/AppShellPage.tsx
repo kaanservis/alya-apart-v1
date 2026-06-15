@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
+import { canAccessTab, getDefaultTabForUser } from '../auth/permissions'
 import { getActiveSeasonYear } from '../calendar/dateUtils'
 import { useSiteSeo } from '../site/useSiteSeo'
+import { UserManagementPage } from '../users/UserManagementPage'
 import { BackupPage } from '../backup/BackupPage'
 import { CashPage } from '../cash/CashPage'
 import { ExpensesPage } from '../expenses/ExpensesPage'
@@ -29,6 +32,8 @@ function usesSharedWorkflowData(tab: AppTab) {
 }
 
 export function AppShellPage() {
+  const { user } = useAuth()
+
   useSiteSeo({
     title: 'ALYA APART Yönetim',
     description: 'ALYA APART iç yönetim paneli.',
@@ -52,6 +57,16 @@ export function AppShellPage() {
     ensureAdminPath()
     writeTabToLocation(activeTab)
   }, [activeTab])
+
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+
+    if (!canAccessTab(user, activeTab)) {
+      setActiveTab(getDefaultTabForUser(user))
+    }
+  }, [user, activeTab])
 
   useEffect(() => {
     function handleHashChange() {
@@ -96,6 +111,7 @@ export function AppShellPage() {
     rooms: 'Oda bilgileri, açıklamalar, özellikler ve web sitesi fotoğraflarını yönetin.',
     website: 'Web sitesi başlığı, iletişim bilgileri ve adres ayarlarını yönetin.',
     settings: 'İşletme WhatsApp numarası ve iletişim ayarlarını yönetin.',
+    users: 'Kullanıcı hesaplarını oluşturun, düzenleyin ve yetkileri yönetin.',
     backup: 'Tüm verileri yedekleyin, geri yükleyin ve otomatik günlük yedekleri yönetin.',
   }
 
@@ -218,6 +234,8 @@ export function AppShellPage() {
             {activeTab === 'website' && <WebsiteManagementPage />}
 
             {activeTab === 'settings' && <SettingsPage />}
+
+            {activeTab === 'users' && user && canAccessTab(user, 'users') && <UserManagementPage />}
 
             {activeTab === 'backup' && <BackupPage onUpdated={handleUpdated} />}
           </div>

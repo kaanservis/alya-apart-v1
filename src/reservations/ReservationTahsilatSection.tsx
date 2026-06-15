@@ -31,8 +31,17 @@ export function ReservationTahsilatSection({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setReservation(initialReservation)
-  }, [initialReservation])
+    setReservation((current) => {
+      if (
+        current.id === initialReservation.id &&
+        current.updated_at === initialReservation.updated_at
+      ) {
+        return current
+      }
+
+      return initialReservation
+    })
+  }, [initialReservation.id, initialReservation.updated_at, initialReservation])
 
   useEffect(() => {
     async function loadHistory() {

@@ -3,10 +3,10 @@ import type { WebsiteSettingsRow } from '../../types/database'
 import { WEBSITE_GALLERY_CATEGORIES } from '../../website/websiteContentDefaults'
 import {
   getGalleryPreviewUrl,
-  getPromotionalImageFromSettings,
 } from '../../site/SiteContentContext'
 import {
   normalizeMapsEmbedValue,
+  resolveHeroImageUrl,
   uploadHeroImage,
 } from '../../website/websiteContentService'
 import { RichTextEditor } from './RichTextEditor'
@@ -136,7 +136,7 @@ export function WebsiteSettingsPanel() {
   }
 
   const promotionalPreview =
-    getGalleryPreviewUrl(form.hero_image_path) ?? getPromotionalImageFromSettings(form)
+    getGalleryPreviewUrl(form.hero_image_path) ?? resolveHeroImageUrl(form)
   const mapsPreview = normalizeMapsEmbedValue(form.maps_embed)
 
   return (

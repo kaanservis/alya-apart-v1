@@ -14,6 +14,7 @@ const ADMIN_TAB_PATHS = [
   'rooms',
   'website',
   'settings',
+  'users',
   'backup',
 ]
 

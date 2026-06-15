@@ -5,6 +5,7 @@ import {
   getTurkeyMonthDateRange,
 } from '../lib/turkeyDate'
 import type { Expense, ExpenseStatistics } from './types'
+import { MASKED_MONEY_LABEL } from '../auth/formatMoney'
 
 function sumExpensesInRange(expenses: Expense[], start: string, end: string): number {
   return expenses
@@ -28,7 +29,11 @@ export function calculateExpenseStatistics(
   }
 }
 
-export function formatCurrency(value: number) {
+export function formatCurrency(value: number, canViewPrices = true) {
+  if (!canViewPrices) {
+    return MASKED_MONEY_LABEL
+  }
+
   return new Intl.NumberFormat('tr-TR', {
     style: 'currency',
     currency: 'TRY',

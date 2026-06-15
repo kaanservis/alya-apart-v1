@@ -1,20 +1,18 @@
 import { InstagramButton, InstagramIcon } from '../components/SiteActions'
+import { SiteImage } from '../components/SiteImage'
 import { useSiteContent } from '../SiteContentContext'
 
 export function InstagramSection() {
-  const { settings, getGalleryPhotos, heroBackgroundUrl, promotionalImageUrl } = useSiteContent()
+  const { settings, apartmentPhotoUrls, displayApartments, loading } = useSiteContent()
 
   const previewImages = [
-    ...(promotionalImageUrl ? [promotionalImageUrl] : []),
-    ...getGalleryPhotos('plaj').map((photo) => photo.url),
-    ...getGalleryPhotos('deniz').map((photo) => photo.url),
-    ...getGalleryPhotos('apart').map((photo) => photo.url),
-    ...getGalleryPhotos('homepage').map((photo) => photo.url),
-  ].slice(0, 6)
+    ...displayApartments.map((profile) => profile.coverUrl).filter(Boolean),
+    ...apartmentPhotoUrls,
+  ]
+    .filter((url, index, array) => url && array.indexOf(url) === index)
+    .slice(0, 6)
 
-  const fallbackImages = previewImages.length > 0 ? previewImages : [heroBackgroundUrl]
-
-  if (!settings.instagram_url) {
+  if (!settings.instagram && !settings.instagram_url) {
     return null
   }
 
@@ -32,18 +30,28 @@ export function InstagramSection() {
             <h2 className="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">
               {settings.instagram}
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base text-slate-600">{settings.about_short}</p>
+            {settings.about_short && (
+              <p className="mx-auto mt-4 max-w-xl text-base text-slate-600">{settings.about_short}</p>
+            )}
 
-            <div className="mt-8 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
-              {fallbackImages.map((src, index) => (
-                <div
-                  key={`${src}-${index}`}
-                  className="aspect-square overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"
-                >
-                  <img src={src} alt="" className="h-full w-full object-cover opacity-90" loading="lazy" />
-                </div>
-              ))}
-            </div>
+            {loading ? (
+              <div className="mt-8 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="aspect-square animate-pulse rounded-xl bg-slate-200" />
+                ))}
+              </div>
+            ) : previewImages.length > 0 ? (
+              <div className="mt-8 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
+                {previewImages.map((src, index) => (
+                  <div
+                    key={`${src}-${index}`}
+                    className="aspect-square overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"
+                  >
+                    <SiteImage src={src} alt="" className="h-full w-full object-cover opacity-90" loading="lazy" />
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             <div className="mt-10">
               <InstagramButton label="Instagram'da Takip Et" />

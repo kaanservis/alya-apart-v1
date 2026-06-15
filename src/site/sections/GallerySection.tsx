@@ -1,57 +1,50 @@
 import { useMemo, useState } from 'react'
 import { PhotoLightbox } from '../components/PhotoLightbox'
-import { GALLERY_CATEGORY_LABELS } from '../../website/websiteContentDefaults'
-import type { WebsiteGalleryCategory } from '../../types/database'
+import { SiteImage } from '../components/SiteImage'
 import { useSiteContent } from '../SiteContentContext'
 
 interface GalleryItem {
   id: string
   url: string
   label: string
-  featured?: boolean
 }
 
-const GALLERY_CATEGORIES: WebsiteGalleryCategory[] = ['deniz', 'plaj', 'apart', 'cevre']
-
 export function GallerySection() {
-  const { settings, gallery, promotionalImageUrl } = useSiteContent()
+  const { settings, displayApartments, loading } = useSiteContent()
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   const galleryItems = useMemo(() => {
     const items: GalleryItem[] = []
 
-    if (promotionalImageUrl) {
-      items.push({
-        id: 'promotional-poster',
-        url: promotionalImageUrl,
-        label: 'Tanıtım',
-        featured: true,
-      })
-    }
-
-    gallery.homepage.forEach((photo) => {
-      items.push({
-        id: photo.id,
-        url: photo.url,
-        label: GALLERY_CATEGORY_LABELS.homepage,
-      })
-    })
-
-    GALLERY_CATEGORIES.forEach((category) => {
-      gallery[category].forEach((photo) => {
+    displayApartments.forEach((profile) => {
+      profile.photos.forEach((photo) => {
         items.push({
-          id: photo.id,
-          url: photo.url,
-          label: GALLERY_CATEGORY_LABELS[category],
+          id: `${profile.apartment.id}-${photo.id}`,
+          url: photo.photoUrl,
+          label: profile.apartment.name,
         })
       })
     })
 
     return items
-  }, [gallery, promotionalImageUrl])
+  }, [displayApartments])
 
   const lightboxPhotos = galleryItems.map((item) => ({ id: item.id, url: item.url }))
-  const featuredPoster = galleryItems.find((item) => item.featured)
+
+  if (loading) {
+    return (
+      <section id="gallery" className="scroll-mt-20 bg-white py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="h-8 w-40 animate-pulse rounded-lg bg-slate-200" />
+          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="aspect-square animate-pulse rounded-2xl bg-slate-200" />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   if (galleryItems.length === 0) {
     return null
@@ -65,56 +58,34 @@ export function GallerySection() {
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
             {settings.site_title}
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-slate-600">{settings.about_short}</p>
+          {settings.about_short && (
+            <p className="mt-4 text-base leading-relaxed text-slate-600">{settings.about_short}</p>
+          )}
         </div>
 
-        {featuredPoster && (
-          <button
-            type="button"
-            onClick={() => setLightboxIndex(0)}
-            className="group mt-10 block w-full overflow-hidden rounded-3xl bg-slate-100 shadow-lg ring-1 ring-slate-200 transition hover:shadow-xl"
-          >
-            <img
-              src={featuredPoster.url}
-              alt={`${settings.site_title} tanıtım afişi`}
-              className="max-h-[520px] w-full object-contain bg-slate-50 transition duration-500 group-hover:scale-[1.01] sm:object-cover sm:object-center"
-              loading="lazy"
-            />
-            <span className="block bg-slate-900/90 px-4 py-3 text-left text-sm font-semibold text-white">
-              Tanıtım Afişi
-            </span>
-          </button>
-        )}
-
         <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-          {galleryItems
-            .filter((item) => !item.featured)
-            .map((item, index) => {
-              const lightboxItemIndex = galleryItems.findIndex((entry) => entry.id === item.id)
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setLightboxIndex(lightboxItemIndex)}
-                  className={`group relative overflow-hidden rounded-2xl shadow-md ring-1 ring-slate-100 transition hover:shadow-xl ${
-                    index % 5 === 0 ? 'col-span-2 row-span-2' : ''
-                  }`}
-                >
-                  <img
-                    src={item.url}
-                    alt={item.label}
-                    className={`w-full object-cover transition duration-500 group-hover:scale-105 ${
-                      index % 5 === 0 ? 'aspect-square sm:aspect-[4/3]' : 'aspect-square'
-                    }`}
-                    loading="lazy"
-                  />
-                  <span className="absolute bottom-2 left-2 rounded-full bg-black/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur sm:text-xs">
-                    {item.label}
-                  </span>
-                </button>
-              )
-            })}
+          {galleryItems.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setLightboxIndex(index)}
+              className={`group relative overflow-hidden rounded-2xl shadow-md ring-1 ring-slate-100 transition hover:shadow-xl ${
+                index % 5 === 0 ? 'col-span-2 row-span-2' : ''
+              }`}
+            >
+              <SiteImage
+                src={item.url}
+                alt={item.label}
+                className={`w-full object-cover transition duration-500 group-hover:scale-105 ${
+                  index % 5 === 0 ? 'aspect-square sm:aspect-[4/3]' : 'aspect-square'
+                }`}
+                loading="lazy"
+              />
+              <span className="absolute bottom-2 left-2 rounded-full bg-black/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur sm:text-xs">
+                {item.label}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 

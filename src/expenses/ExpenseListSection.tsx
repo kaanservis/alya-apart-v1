@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
 import type { Expense } from './types'
 import { deleteExpense } from './expenseService'
 import { formatCurrency, formatDate } from './expenseCalculations'
@@ -10,6 +11,8 @@ interface ExpenseListSectionProps {
 }
 
 export function ExpenseListSection({ expenses, onEdit, onDeleted }: ExpenseListSectionProps) {
+  const { hasPermission } = useAuth()
+  const canViewPrices = hasPermission('can_view_prices')
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -66,7 +69,7 @@ export function ExpenseListSection({ expenses, onEdit, onDeleted }: ExpenseListS
                   <td className="px-4 py-3 text-slate-700">{formatDate(expense.tarih)}</td>
                   <td className="px-4 py-3 font-medium text-slate-900">{expense.aciklama}</td>
                   <td className="px-4 py-3 font-medium text-slate-900">
-                    {formatCurrency(Number(expense.tutar))}
+                    {formatCurrency(Number(expense.tutar), canViewPrices)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">

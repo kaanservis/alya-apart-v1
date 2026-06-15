@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
+import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 import {
   buildReportData,
   formatPercent,
-  formatReportCurrency,
 } from './reportCalculations'
 import type { RoomReportRow } from './reportCalculations'
 import {
@@ -50,6 +50,7 @@ function SummaryCard({
 }
 
 export function ReportsPage({ refreshToken }: ReportsPageProps) {
+  const formatReportCurrency = useFormatAdminCurrency()
   const { units, reservations, expenses, loading, error } = useReportsData(refreshToken)
   const [preset, setPreset] = useState<ReportFilterPreset>('season')
   const [customStart, setCustomStart] = useState('')

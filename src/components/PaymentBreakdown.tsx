@@ -3,20 +3,14 @@ import {
   getTotalCollected,
   type ReservationPaymentFields,
 } from '../reservations/depositCalculations'
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 2,
-  }).format(value)
-}
+import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 
 interface PaymentBreakdownProps {
   reservation: ReservationPaymentFields
 }
 
 export function PaymentBreakdown({ reservation }: PaymentBreakdownProps) {
+  const formatCurrency = useFormatAdminCurrency()
   const totalCollected = getTotalCollected(reservation)
   const remainingBalance = getRemainingBalance(reservation)
 

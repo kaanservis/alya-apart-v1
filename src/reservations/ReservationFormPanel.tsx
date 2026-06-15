@@ -1,4 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { useAuth } from '../auth/AuthContext'
+import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { applyReservationFieldChange, buildNewReservationFormValues, reservationToFormValues } from './formState'
 import {
@@ -36,14 +38,6 @@ export interface ReservationFormPanelProps {
   initialUnitId?: string
   initialCheckIn?: string
   initialCheckOut?: string
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 2,
-  }).format(value)
 }
 
 interface FormSectionProps {
@@ -124,6 +118,12 @@ export function ReservationFormPanel({
   initialCheckIn,
   initialCheckOut,
 }: ReservationFormPanelProps) {
+  const { hasPermission } = useAuth()
+  const formatCurrency = useFormatAdminCurrency()
+  const canChangeDates = hasPermission('can_change_dates')
+  const canEditPrices = hasPermission('can_edit_prices')
+  const canDeleteReservations = hasPermission('can_delete_reservations')
+
   const initialValues = useMemo(() => {
     if (mode === 'edit' && editReservation) {
       return reservationToFormValues(editReservation)
@@ -343,8 +343,9 @@ export function ReservationFormPanel({
               <input
                 type="date"
                 value={values.giris_tarihi}
+                readOnly={!canChangeDates}
                 onChange={(event) => handleChange('giris_tarihi', event.target.value)}
-                className={fieldClassName}
+                className={`${fieldClassName}${!canChangeDates ? ' cursor-not-allowed bg-slate-100' : ''}`}
               />
               {errors.giris_tarihi && (
                 <span className="mt-1 block text-xs text-red-600">{errors.giris_tarihi}</span>
@@ -356,8 +357,9 @@ export function ReservationFormPanel({
               <input
                 type="date"
                 value={values.cikis_tarihi}
+                readOnly={!canChangeDates}
                 onChange={(event) => handleChange('cikis_tarihi', event.target.value)}
-                className={fieldClassName}
+                className={`${fieldClassName}${!canChangeDates ? ' cursor-not-allowed bg-slate-100' : ''}`}
               />
               {errors.cikis_tarihi && (
                 <span className="mt-1 block text-xs text-red-600">{errors.cikis_tarihi}</span>
@@ -481,8 +483,9 @@ export function ReservationFormPanel({
                   inputMode="decimal"
                   value={values.gunluk_ucret}
                   placeholder="0,00"
+                  readOnly={!canEditPrices}
                   onChange={(event) => handlePriceChange('gunluk_ucret', event.target.value)}
-                  className={fieldClassName}
+                  className={`${fieldClassName}${!canEditPrices ? ' cursor-not-allowed bg-slate-100' : ''}`}
                 />
                 {errors.gunluk_ucret && (
                   <span className="mt-1 block text-xs text-red-600">{errors.gunluk_ucret}</span>
@@ -496,8 +499,9 @@ export function ReservationFormPanel({
                   inputMode="decimal"
                   value={values.toplam_ucret}
                   placeholder="0,00"
+                  readOnly={!canEditPrices}
                   onChange={(event) => handlePriceChange('toplam_ucret', event.target.value)}
-                  className={fieldClassName}
+                  className={`${fieldClassName}${!canEditPrices ? ' cursor-not-allowed bg-slate-100' : ''}`}
                 />
                 {errors.toplam_ucret && (
                   <span className="mt-1 block text-xs text-red-600">{errors.toplam_ucret}</span>
@@ -511,8 +515,9 @@ export function ReservationFormPanel({
                   inputMode="decimal"
                   value={values.alinan_tutar}
                   placeholder="0,00"
+                  readOnly={!canEditPrices}
                   onChange={(event) => handlePriceChange('alinan_tutar', event.target.value)}
-                  className={fieldClassName}
+                  className={`${fieldClassName}${!canEditPrices ? ' cursor-not-allowed bg-slate-100' : ''}`}
                 />
                 {errors.alinan_tutar && (
                   <span className="mt-1 block text-xs text-red-600">{errors.alinan_tutar}</span>
@@ -534,7 +539,7 @@ export function ReservationFormPanel({
 
         {showPricingSection && (
           <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-6">
-            {mode === 'edit' && (
+            {mode === 'edit' && canDeleteReservations && (
               <button
                 type="button"
                 disabled={submitting || deleting}

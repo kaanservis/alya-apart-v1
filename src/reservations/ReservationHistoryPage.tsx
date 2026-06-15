@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 import { GuestArchiveDetail } from '../guests/GuestArchiveDetail'
 import type { GuestEntryWithPhotos } from '../guests/guestTypes'
 import type { Reservation } from '../types/database'
@@ -12,14 +13,6 @@ import {
 
 interface ReservationHistoryPageProps {
   refreshToken?: number
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 
 export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryPageProps) {
@@ -185,6 +178,7 @@ function HistoryRow({
   unitName: string
   guests: GuestEntryWithPhotos[]
 }) {
+  const formatCurrency = useFormatAdminCurrency()
   const [expanded, setExpanded] = useState(false)
 
   return (

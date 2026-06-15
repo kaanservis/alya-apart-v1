@@ -29,10 +29,10 @@ export function SiteFooter({ privatePage = false }: SiteFooterProps) {
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => goToSection('gallery')}
+            onClick={() => goToSection('apartments')}
             className="text-sm font-medium hover:text-white"
           >
-            Galeri
+            Apartlar
           </button>
           <button
             type="button"

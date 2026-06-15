@@ -1,3 +1,5 @@
+import { useAuth } from '../auth/AuthContext'
+import { canAccessTab } from '../auth/permissions'
 import { APP_ROUTES, type AppTab } from './routes'
 
 interface AppSidebarProps {
@@ -13,6 +15,10 @@ export function AppSidebar({
   mobileOpen,
   onMobileClose,
 }: AppSidebarProps) {
+  const { user, logout } = useAuth()
+
+  const visibleRoutes = APP_ROUTES.filter((tab) => canAccessTab(user, tab.id))
+
   function handleSelect(tab: AppTab) {
     onTabChange(tab)
     onMobileClose()
@@ -35,7 +41,7 @@ export function AppSidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1.5 p-4">
-        {APP_ROUTES.map((tab) => {
+        {visibleRoutes.map((tab) => {
           const isActive = activeTab === tab.id
 
           return (
@@ -54,6 +60,18 @@ export function AppSidebar({
           )
         })}
       </nav>
+
+      <div className="border-t border-white/10 p-4">
+        <p className="truncate px-1 text-xs font-medium text-blue-100/80">Giriş yapan</p>
+        <p className="truncate px-1 text-sm font-bold text-white">{user?.username ?? '—'}</p>
+        <button
+          type="button"
+          onClick={logout}
+          className="mt-3 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+        >
+          Çıkış Yap
+        </button>
+      </div>
     </>
   )
 

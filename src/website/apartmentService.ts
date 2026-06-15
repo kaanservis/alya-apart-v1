@@ -1,4 +1,3 @@
-import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type {
   ApartmentId,
   ApartmentPhoto,
@@ -6,26 +5,19 @@ import type {
   ApartmentProfile,
   ApartmentRow,
 } from '../types/database'
+import { logApartmentLoad, logApartmentLoadError } from './apartmentLoadLog'
+import {
+  deleteApartmentPhotoRow,
+  fetchApartmentPhotoRows,
+  fetchApartmentRows,
+  fetchMaxPhotoSortOrder,
+  insertApartmentPhotoRow,
+  normalizeApartmentIdForQuery,
+  updateApartmentCoverImage,
+  updateApartmentRow,
+} from './apartmentRepository'
+import { assertSupabaseClient } from './apartmentRepositoryHelpers'
 import { getWebsiteImagePublicUrl, WEBSITE_IMAGES_BUCKET } from './websiteImageService'
-
-function isMissingApartmentError(error: { message?: string; code?: string }) {
-  const message = error.message?.toLowerCase() ?? ''
-
-  return (
-    error.code === 'PGRST205' ||
-    message.includes('schema cache') ||
-    message.includes('apartments') ||
-    message.includes('apartment_photos')
-  )
-}
-
-function assertSupabaseClient() {
-  if (!isSupabaseConfigured || !supabase) {
-    throw new Error('Supabase bağlantısı yapılandırılmadı.')
-  }
-
-  return supabase
-}
 
 function mapPhotoRow(row: ApartmentPhotoRow): ApartmentPhoto {
   return {
@@ -45,89 +37,77 @@ function buildApartmentProfile(apartment: ApartmentRow, photos: ApartmentPhoto[]
   }
 }
 
+export interface ApartmentProfilesFetchResult {
+  profiles: ApartmentProfile[]
+  rawCount: number
+}
+
 export async function fetchApartmentProfiles(): Promise<ApartmentProfile[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return []
+  const result = await fetchApartmentProfilesWithMeta()
+  return result.profiles
+}
+
+export async function fetchApartmentProfilesWithMeta(): Promise<ApartmentProfilesFetchResult> {
+  logApartmentLoad('fetchApartmentProfiles() start')
+
+  try {
+    const { rows: apartments, rawCount } = await fetchApartmentRows()
+
+    logApartmentLoad('fetchApartmentProfiles() mapped apartments', {
+      count: apartments.length,
+      rawCount,
+      ids: apartments.map((apartment) => apartment.id),
+      names: apartments.map((apartment) => apartment.name),
+    })
+
+    const apartmentIds = apartments.map((apartment) => apartment.id)
+    const photoRows = await fetchApartmentPhotoRows(apartmentIds)
+    const photos = photoRows.map(mapPhotoRow)
+
+    const profiles = apartments.map((apartment) =>
+      buildApartmentProfile(
+        apartment,
+        photos.filter((photo) => photo.apartmentId === apartment.id),
+      ),
+    )
+
+    logApartmentLoad('fetchApartmentProfiles() success', { profileCount: profiles.length, rawCount })
+
+    return { profiles, rawCount }
+  } catch (error) {
+    logApartmentLoadError('fetchApartmentProfiles() failed', error)
+    throw error
   }
-
-  const client = assertSupabaseClient()
-
-  const apartmentsResult = await client
-    .from('apartments')
-    .select('*')
-    .order('sort_order', { ascending: true })
-    .order('id', { ascending: true })
-
-  if (apartmentsResult.error) {
-    if (isMissingApartmentError(apartmentsResult.error)) {
-      throw new Error('Apart tabloları bulunamadı.')
-    }
-
-    throw new Error(apartmentsResult.error.message)
-  }
-
-  const apartments = (apartmentsResult.data ?? []) as ApartmentRow[]
-
-  if (apartments.length === 0) {
-    return []
-  }
-
-  const apartmentIds = apartments.map((apartment) => apartment.id)
-
-  const photosResult = await client
-    .from('apartment_photos')
-    .select('*')
-    .in('apartment_id', apartmentIds)
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true })
-
-  if (photosResult.error) {
-    if (isMissingApartmentError(photosResult.error)) {
-      throw new Error('Apart fotoğraf tablosu bulunamadı.')
-    }
-
-    throw new Error(photosResult.error.message)
-  }
-
-  const photos = ((photosResult.data ?? []) as ApartmentPhotoRow[]).map(mapPhotoRow)
-
-  return apartments.map((apartment) =>
-    buildApartmentProfile(
-      apartment,
-      photos.filter((photo) => photo.apartmentId === apartment.id),
-    ),
-  )
 }
 
 export async function updateApartment(
   apartmentId: ApartmentId,
   patch: Partial<Omit<ApartmentRow, 'id' | 'created_at' | 'updated_at'>>,
 ): Promise<ApartmentRow> {
-  const client = assertSupabaseClient()
-
-  const { error } = await client.from('apartments').update(patch as never).eq('id', apartmentId)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const { data, error: fetchError } = await client
-    .from('apartments')
-    .select('*')
-    .eq('id', apartmentId)
-    .single()
-
-  if (fetchError) {
-    throw new Error(fetchError.message)
-  }
-
-  return data as ApartmentRow
+  return updateApartmentRow(apartmentId, patch)
 }
 
-export async function uploadApartmentCoverPhoto(apartmentId: ApartmentId, file: File): Promise<string> {
+export interface ApartmentCoverUploadResult {
+  storagePath: string
+  publicUrl: string
+}
+
+export async function uploadApartmentCoverPhoto(
+  apartmentId: ApartmentId,
+  file: File,
+): Promise<ApartmentCoverUploadResult> {
   const client = assertSupabaseClient()
+  const numericId = normalizeApartmentIdForQuery(apartmentId)
   const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-  const storagePath = `apartments/${apartmentId}/cover/${Date.now()}-${crypto.randomUUID()}.${extension}`
+  const storagePath = `apartments/${numericId}/cover/${Date.now()}-${crypto.randomUUID()}.${extension}`
+
+  logApartmentLoad('uploadApartmentCoverPhoto → storage upload starting', {
+    apartmentIdInput: apartmentId,
+    apartmentIdType: typeof apartmentId,
+    apartmentIdNumeric: numericId,
+    storagePath,
+    fileName: file.name,
+  })
 
   const uploadResult = await client.storage.from(WEBSITE_IMAGES_BUCKET).upload(storagePath, file, {
     cacheControl: '3600',
@@ -136,12 +116,26 @@ export async function uploadApartmentCoverPhoto(apartmentId: ApartmentId, file: 
   })
 
   if (uploadResult.error) {
-    throw new Error(uploadResult.error.message)
+    throw new Error(`Kapak fotoğrafı yüklenemedi: ${uploadResult.error.message}`)
   }
 
   const publicUrl = getWebsiteImagePublicUrl(storagePath)
-  await updateApartment(apartmentId, { cover_image: publicUrl })
-  return publicUrl
+
+  logApartmentLoad('uploadApartmentCoverPhoto → storage upload ok', {
+    apartmentId: numericId,
+    storagePath,
+    publicUrl,
+  })
+
+  const updatedRow = await updateApartmentCoverImage(numericId, storagePath)
+
+  logApartmentLoad('uploadApartmentCoverPhoto → apartments.cover_image updated', {
+    apartmentId: numericId,
+    cover_image: updatedRow.cover_image,
+    publicUrl,
+  })
+
+  return { storagePath, publicUrl }
 }
 
 export async function uploadApartmentGalleryPhotos(
@@ -151,19 +145,7 @@ export async function uploadApartmentGalleryPhotos(
   const client = assertSupabaseClient()
   const uploaded: ApartmentPhoto[] = []
 
-  const { data: existingPhotos, error: existingError } = await client
-    .from('apartment_photos')
-    .select('sort_order')
-    .eq('apartment_id', apartmentId)
-    .order('sort_order', { ascending: false })
-    .limit(1)
-
-  if (existingError) {
-    throw new Error(existingError.message)
-  }
-
-  let nextSortOrder =
-    ((existingPhotos ?? []) as Pick<ApartmentPhotoRow, 'sort_order'>[])[0]?.sort_order ?? -1
+  let nextSortOrder = await fetchMaxPhotoSortOrder(apartmentId)
 
   for (const file of files) {
     nextSortOrder += 1
@@ -182,22 +164,13 @@ export async function uploadApartmentGalleryPhotos(
 
     const photoUrl = getWebsiteImagePublicUrl(storagePath)
 
-    const insertResult = await client
-      .from('apartment_photos')
-      .insert({
-        apartment_id: apartmentId,
-        photo_url: photoUrl,
-        sort_order: nextSortOrder,
-      } as never)
-      .select('*')
-      .single()
-
-    if (insertResult.error) {
+    try {
+      const row = await insertApartmentPhotoRow(apartmentId, photoUrl, nextSortOrder)
+      uploaded.push(mapPhotoRow(row))
+    } catch (insertError) {
       await client.storage.from(WEBSITE_IMAGES_BUCKET).remove([storagePath])
-      throw new Error(insertResult.error.message)
+      throw insertError
     }
-
-    uploaded.push(mapPhotoRow(insertResult.data as ApartmentPhotoRow))
   }
 
   return uploaded
@@ -216,11 +189,7 @@ export async function deleteApartmentPhoto(photoId: ApartmentId, photoUrl: strin
     }
   }
 
-  const deleteResult = await client.from('apartment_photos').delete().eq('id', photoId)
-
-  if (deleteResult.error) {
-    throw new Error(deleteResult.error.message)
-  }
+  await deleteApartmentPhotoRow(photoId)
 }
 
 function extractStoragePathFromPublicUrl(publicUrl: string) {
@@ -234,11 +203,18 @@ function extractStoragePathFromPublicUrl(publicUrl: string) {
   return decodeURIComponent(publicUrl.slice(index + marker.length))
 }
 
+/** Persists text/features only. Cover image is saved via uploadApartmentCoverPhoto(). */
 export async function saveApartmentProfiles(apartments: ApartmentRow[]): Promise<void> {
   await Promise.all(
     apartments.map((apartment) => {
-      const { id, created_at: _createdAt, updated_at: _updatedAt, ...patch } = apartment
-      return updateApartment(id, patch)
+      const {
+        id,
+        created_at: _createdAt,
+        updated_at: _updatedAt,
+        cover_image: _coverImage,
+        ...patch
+      } = apartment
+      return updateApartmentRow(id, patch)
     }),
   )
 }

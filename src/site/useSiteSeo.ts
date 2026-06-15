@@ -28,7 +28,7 @@ function removeMeta(name: string, attribute: 'name' | 'property' = 'name') {
 }
 
 export function useSiteSeo({
-  title = 'ALYA APART',
+  title = '',
   description = '',
   keywords = '',
   path = '/',
@@ -36,18 +36,16 @@ export function useSiteSeo({
   noIndex = false,
 }: SiteSeoOptions = {}) {
   useEffect(() => {
-    const siteName = title.includes('|') ? title.split('|')[0]?.trim() || title : title
-    const fullTitle = title.includes('|') ? title : `${title} | Avşa Apart Konaklama & Tatil`
+    const fullTitle = title.trim()
+    const siteName = fullTitle.includes('|')
+      ? fullTitle.split('|')[0]?.trim() || fullTitle
+      : fullTitle
     const metaDescription = description
     const ogImage = getAbsoluteSiteUrl(image ?? '')
     const canonicalUrl = getAbsoluteSiteUrl(path)
 
     document.title =
-      noIndex && title !== siteName
-        ? `${title} | ${siteName}`
-        : title === siteName
-          ? fullTitle
-          : `${title} | ${siteName}`
+      noIndex && title && title !== siteName ? `${title} | ${siteName}` : fullTitle || siteName
 
     upsertMeta('description', metaDescription)
 
@@ -70,7 +68,7 @@ export function useSiteSeo({
       removeMeta('twitter:description')
       removeMeta('twitter:image')
     } else {
-      upsertMeta('og:title', fullTitle, 'property')
+      upsertMeta('og:title', fullTitle || siteName, 'property')
       upsertMeta('og:description', metaDescription, 'property')
       upsertMeta('og:type', 'website', 'property')
       upsertMeta('og:locale', 'tr_TR', 'property')
@@ -80,7 +78,7 @@ export function useSiteSeo({
       }
       upsertMeta('og:url', canonicalUrl, 'property')
       upsertMeta('twitter:card', 'summary_large_image')
-      upsertMeta('twitter:title', fullTitle)
+      upsertMeta('twitter:title', fullTitle || siteName)
       upsertMeta('twitter:description', metaDescription)
       if (image) {
         upsertMeta('twitter:image', ogImage)

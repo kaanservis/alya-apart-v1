@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { AdminGate } from './auth/AdminGate'
+import { AuthProvider } from './auth/AuthContext'
 import { AppShellPage } from './app/AppShellPage'
 import { readAppSection, type AppSection } from './app/appSection'
 import { SiteApp } from './site/SiteApp'
@@ -24,7 +26,13 @@ function App() {
     return <SiteApp />
   }
 
-  return <AppShellPage />
+  return (
+    <AuthProvider>
+      <AdminGate>
+        <AppShellPage />
+      </AdminGate>
+    </AuthProvider>
+  )
 }
 
 export default App

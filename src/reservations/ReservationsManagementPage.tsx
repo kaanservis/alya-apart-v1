@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { formatReservationDate } from './reservationDisplay'
 import { getTotalCollected } from './depositCalculations'
@@ -12,14 +13,6 @@ interface ReservationsManagementPageProps {
   error?: string | null
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
 export function ReservationsManagementPage({
   units,
   reservations,
@@ -27,6 +20,7 @@ export function ReservationsManagementPage({
   loading = false,
   error = null,
 }: ReservationsManagementPageProps) {
+  const formatCurrency = useFormatAdminCurrency()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formKey, setFormKey] = useState(0)
   const [editReservation, setEditReservation] = useState<Reservation | null>(null)

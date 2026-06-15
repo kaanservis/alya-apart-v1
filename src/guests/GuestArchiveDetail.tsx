@@ -1,4 +1,6 @@
 import type { GuestEntryWithPhotos } from './guestTypes'
+import { useAuth } from '../auth/AuthContext'
+import { maskTcNumber } from '../auth/formatMoney'
 import { getGuestPhotoPublicUrl } from './guestService'
 import { GUEST_PHOTO_LABELS } from './guestTypes'
 
@@ -13,6 +15,9 @@ export function GuestArchiveDetail({
   kisiSayisi,
   guests,
 }: GuestArchiveDetailProps) {
+  const { hasPermission } = useAuth()
+  const canViewCustomerTc = hasPermission('can_view_customer_tc')
+
   return (
     <div className="space-y-4 border-t border-blue-100 bg-slate-50/80 px-4 py-4">
       <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -42,7 +47,7 @@ export function GuestArchiveDetail({
                 {index + 1}. {guest.full_name}
               </p>
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-                {guest.tc_no && <span>TC: {guest.tc_no}</span>}
+                {guest.tc_no && <span>TC: {maskTcNumber(guest.tc_no, canViewCustomerTc)}</span>}
                 {guest.phone && <span>Tel: {guest.phone}</span>}
                 {guest.notes && <span>Not: {guest.notes}</span>}
               </div>

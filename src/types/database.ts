@@ -143,6 +143,14 @@ export interface WebsiteGalleryPhoto {
 
 export type ApartmentId = number
 
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
 export interface ApartmentRow {
   id: ApartmentId
   name: string
@@ -280,12 +288,88 @@ export interface Database {
       apartment_photos: {
         Row: ApartmentPhotoRow
         Insert: Omit<ApartmentPhotoRow, 'id' | 'created_at'> & {
-          id?: string
+          id?: ApartmentId
           created_at?: string
         }
         Update: Partial<Omit<ApartmentPhotoRow, 'id' | 'created_at'>>
       }
+      users: {
+        Row: {
+          id: string
+          username: string
+          password_hash: string
+          role: string
+          active: boolean
+          can_view_prices: boolean
+          can_edit_prices: boolean
+          can_view_reports: boolean
+          can_delete_reservations: boolean
+          can_change_dates: boolean
+          can_manage_users: boolean
+          can_manage_website: boolean
+          can_view_customer_tc: boolean
+          can_upload_photos: boolean
+          created_at: string
+        }
+        Insert: never
+        Update: never
+      }
     }
+    Views: Record<string, never>
+    Functions: {
+      authenticate_admin: {
+        Args: { p_username: string; p_password: string }
+        Returns: Json
+      }
+      list_admin_users: {
+        Args: { p_caller_id: string }
+        Returns: Json
+      }
+      create_admin_user: {
+        Args: {
+          p_caller_id: string
+          p_username: string
+          p_password: string
+          p_role: string
+          p_active: boolean
+          p_can_view_prices: boolean
+          p_can_edit_prices: boolean
+          p_can_view_reports: boolean
+          p_can_delete_reservations: boolean
+          p_can_change_dates: boolean
+          p_can_manage_users: boolean
+          p_can_manage_website: boolean
+          p_can_view_customer_tc: boolean
+          p_can_upload_photos: boolean
+        }
+        Returns: Json
+      }
+      update_admin_user: {
+        Args: {
+          p_caller_id: string
+          p_user_id: string
+          p_username: string
+          p_password: string | null
+          p_role: string
+          p_active: boolean
+          p_can_view_prices: boolean
+          p_can_edit_prices: boolean
+          p_can_view_reports: boolean
+          p_can_delete_reservations: boolean
+          p_can_change_dates: boolean
+          p_can_manage_users: boolean
+          p_can_manage_website: boolean
+          p_can_view_customer_tc: boolean
+          p_can_upload_photos: boolean
+        }
+        Returns: Json
+      }
+      delete_admin_user: {
+        Args: { p_caller_id: string; p_user_id: string }
+        Returns: Json
+      }
+    }
+    Enums: Record<string, never>
   }
 }
 

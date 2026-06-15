@@ -1,5 +1,6 @@
 export const PUBLIC_NAV_LINKS = [
   { id: 'hero', label: 'Ana Sayfa' },
+  { id: 'apartments', label: 'Apartlar' },
   { id: 'about', label: 'Hakkımızda' },
   { id: 'gallery', label: 'Galeri' },
   { id: 'location', label: 'Konum' },

@@ -9,7 +9,7 @@ interface SiteHeaderProps {
 }
 
 export function SiteHeader({ privatePage = false }: SiteHeaderProps) {
-  const { settings } = useSiteContent()
+  const { settings, loading } = useSiteContent()
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
@@ -50,12 +50,21 @@ export function SiteHeader({ privatePage = false }: SiteHeaderProps) {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         <button type="button" onClick={handleHomeClick} className="group text-left">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-600 sm:text-xs">
-            {settings.address}
-          </p>
-          <p className="text-lg font-extrabold tracking-tight text-slate-900 group-hover:text-blue-800 sm:text-xl">
-            {settings.site_title}
-          </p>
+          {loading ? (
+            <div className="space-y-1">
+              <div className="h-3 w-28 animate-pulse rounded bg-slate-200" />
+              <div className="h-6 w-36 animate-pulse rounded bg-slate-200" />
+            </div>
+          ) : (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-600 sm:text-xs">
+                {settings.address}
+              </p>
+              <p className="text-lg font-extrabold tracking-tight text-slate-900 group-hover:text-blue-800 sm:text-xl">
+                {settings.site_title}
+              </p>
+            </>
+          )}
         </button>
 
         <nav className="hidden items-center gap-1 lg:flex">

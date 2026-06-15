@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import type { GuestPhoto, GuestPhotoType } from '../types/database'
 import { getGuestPhotoPublicUrl, getGuestPhotoUploadErrorMessage, uploadGuestPhoto } from './guestService'
 import { GUEST_PHOTO_LABELS } from './guestTypes'
@@ -12,9 +12,10 @@ interface GuestPhotoUploadProps {
   onUploaded: (photo: GuestPhoto) => void | Promise<void>
   onDelete?: (photo: GuestPhoto) => Promise<void>
   deleting?: boolean
+  disabled?: boolean
 }
 
-export function GuestPhotoUpload({
+export const GuestPhotoUpload = memo(function GuestPhotoUpload({
   guestEntryId,
   reservationId,
   photoType,
@@ -23,6 +24,7 @@ export function GuestPhotoUpload({
   onUploaded,
   onDelete,
   deleting = false,
+  disabled = false,
 }: GuestPhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -53,6 +55,10 @@ export function GuestPhotoUpload({
   }, [success])
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    if (disabled) {
+      return
+    }
+
     const file = event.target.files?.[0]
     if (!file) {
       return
@@ -141,11 +147,17 @@ export function GuestPhotoUpload({
 
       <button
         type="button"
-        disabled={uploading || deleting}
+        disabled={disabled || uploading || deleting}
         onClick={() => inputRef.current?.click()}
         className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
       >
-        {uploading ? 'Yükleniyor...' : capture ? `${label} Çek` : `${label} Yükle`}
+        {disabled
+          ? 'Yetki yok'
+          : uploading
+            ? 'Yükleniyor...'
+            : capture
+              ? `${label} Çek`
+              : `${label} Yükle`}
       </button>
 
       {success && (
@@ -160,7 +172,7 @@ export function GuestPhotoUpload({
         </p>
       )}
 
-      {existingPhoto && onDelete && (
+      {existingPhoto && onDelete && !disabled && (
         confirmDelete ? (
           <div className="rounded-lg border border-red-200 bg-red-50 p-2">
             <p className="text-xs text-red-800">Fotoğraf silinsin mi?</p>
@@ -196,4 +208,4 @@ export function GuestPhotoUpload({
       )}
     </div>
   )
-}
+})
