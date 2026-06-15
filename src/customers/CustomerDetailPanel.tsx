@@ -4,13 +4,15 @@ import { PaymentBreakdown } from '../components/PaymentBreakdown'
 import { SlideOverPanel } from '../components/SlideOverPanel'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
+import { fetchGuestEntriesForReservation } from '../guests/guestService'
 import { getRemainingBalance } from '../reservations/depositCalculations'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import { reservationToFormValues } from '../reservations/formState'
 import { ReservationFormPanel } from '../reservations/ReservationFormPanel'
 import { deleteReservation, updateReservation } from '../reservations/reservationService'
 import { getAvailableUnits } from '../reservations/validation'
-import { findGuestReservationHistory } from './customerListUtils'
+import { CustomerStayingGuestsSection } from './CustomerStayingGuestsSection'
+import { exportCustomerReservationPdf } from './customerReservationPdf'
 
 interface CustomerDetailPanelProps {
   reservation: Reservation
@@ -19,7 +21,6 @@ interface CustomerDetailPanelProps {
   reservations: Reservation[]
   onClose: () => void
   onUpdated: () => void
-  unitMap: Map<string, string>
 }
 
 type ActionMode = 'view' | 'edit' | 'changeRoom' | 'changeDates'
@@ -31,24 +32,21 @@ export function CustomerDetailPanel({
   reservations,
   onClose,
   onUpdated,
-  unitMap,
 }: CustomerDetailPanelProps) {
   const { hasPermission } = useAuth()
   const canChangeDates = hasPermission('can_change_dates')
   const canDeleteReservations = hasPermission('can_delete_reservations')
+  const canViewPrices = hasPermission('can_view_prices')
+  const canViewCustomerTc = hasPermission('can_view_customer_tc')
 
   const [mode, setMode] = useState<ActionMode>('view')
   const [processing, setProcessing] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [selectedRoomId, setSelectedRoomId] = useState(reservation.konaklama_birimi_id)
   const [checkIn, setCheckIn] = useState(reservation.giris_tarihi)
   const [checkOut, setCheckOut] = useState(reservation.cikis_tarihi)
-
-  const guestHistory = useMemo(
-    () => findGuestReservationHistory(reservations, reservation),
-    [reservations, reservation],
-  )
 
   const availableRooms = useMemo(() => {
     return getAvailableUnits(units, reservations, checkIn, checkOut, reservation.id)
@@ -107,6 +105,23 @@ export function CustomerDetailPanel({
       setActionError(error instanceof Error ? error.message : 'Tarihler güncellenemedi.')
     } finally {
       setProcessing(false)
+    }
+  }
+
+  async function handleExportPdf() {
+    setExportingPdf(true)
+    setActionError(null)
+
+    try {
+      const guests = await fetchGuestEntriesForReservation(reservation.id)
+      await exportCustomerReservationPdf(reservation, unitName, guests, {
+        canViewPrices,
+        canViewTc: canViewCustomerTc,
+      })
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'PDF oluşturulamadı.')
+    } finally {
+      setExportingPdf(false)
     }
   }
 
@@ -180,6 +195,8 @@ export function CustomerDetailPanel({
             </dl>
           </section>
 
+          <CustomerStayingGuestsSection reservationId={reservation.id} />
+
           <section className="rounded-2xl border border-[#25D366]/20 bg-[#25D366]/5 p-5">
             <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-800">WhatsApp</h3>
             <div className="mt-4">
@@ -202,30 +219,6 @@ export function CustomerDetailPanel({
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Notlar</h3>
               <p className="mt-3 text-sm text-slate-700">{reservation.notlar}</p>
-            </section>
-          )}
-
-          {guestHistory.length > 0 && (
-            <section className="rounded-2xl border border-blue-200 bg-blue-50/50 p-5">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-blue-800">
-                Rezervasyon Geçmişi
-              </h3>
-              <ul className="mt-4 space-y-2">
-                {guestHistory.map((entry) => (
-                  <li
-                    key={entry.id}
-                    className="rounded-xl border border-blue-100 bg-white px-4 py-3 text-sm"
-                  >
-                    <p className="font-semibold text-slate-900">
-                      {unitMap.get(entry.konaklama_birimi_id) ?? '—'} • {entry.durum}
-                    </p>
-                    <p className="mt-1 text-slate-600">
-                      {formatReservationDate(entry.giris_tarihi)} —{' '}
-                      {formatReservationDate(entry.cikis_tarihi)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
             </section>
           )}
 
@@ -296,42 +289,53 @@ export function CustomerDetailPanel({
           )}
 
           {mode === 'view' && (
-            <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-5">
-              <button
-                type="button"
-                onClick={() => setMode('edit')}
-                className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white"
-              >
-                Düzenle
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('changeRoom')}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
-              >
-                Oda Değiştir
-              </button>
-              {canChangeDates && (
+            <div className="flex flex-col gap-3 border-t border-slate-200 pt-5">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setMode('changeDates')}
+                  onClick={() => setMode('edit')}
+                  className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  Düzenle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('changeRoom')}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
                 >
-                  Tarih Değiştir
+                  Oda Değiştir
                 </button>
-              )}
-              {canDeleteReservations && (
-                <button
-                  type="button"
-                  disabled={processing}
-                  onClick={handleDelete}
-                  className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${
-                    confirmDelete ? 'bg-red-700' : 'bg-red-600'
-                  }`}
-                >
-                  {processing ? 'Siliniyor...' : confirmDelete ? 'Silmeyi Onayla' : 'Sil'}
-                </button>
-              )}
+                {canChangeDates && (
+                  <button
+                    type="button"
+                    onClick={() => setMode('changeDates')}
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                  >
+                    Tarih Değiştir
+                  </button>
+                )}
+                {canDeleteReservations && (
+                  <button
+                    type="button"
+                    disabled={processing}
+                    onClick={handleDelete}
+                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${
+                      confirmDelete ? 'bg-red-700' : 'bg-red-600'
+                    }`}
+                  >
+                    {processing ? 'Siliniyor...' : confirmDelete ? 'Silmeyi Onayla' : 'Sil'}
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={exportingPdf}
+                onClick={() => void handleExportPdf()}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-60 sm:w-auto"
+              >
+                {exportingPdf ? 'PDF Oluşturuluyor...' : 'PDF Oluştur'}
+              </button>
             </div>
           )}
         </div>

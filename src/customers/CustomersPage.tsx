@@ -332,7 +332,6 @@ export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
           reservations={reservations}
           onClose={() => setSelectedId(null)}
           onUpdated={handleUpdated}
-          unitMap={unitMap}
         />
       )}
     </div>

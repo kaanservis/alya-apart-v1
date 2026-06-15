@@ -13,6 +13,16 @@ import {
 } from './guestService'
 import { logGuestSection } from './guestSectionLog'
 import type { GuestEntryWithPhotos } from './guestTypes'
+import { GuestFormFields } from './GuestFormFields'
+import {
+  applyGuestFullNameInput,
+  applyGuestTcInput,
+  hasGuestFormErrors,
+  isGuestFormSubmittable,
+  validateGuestFormFields,
+  type GuestFormFieldErrors,
+  type GuestFormValues,
+} from './guestFormValidation'
 import { GuestPhotoUpload } from './GuestPhotoUpload'
 
 interface RoomGuestsSectionProps {
@@ -20,12 +30,7 @@ interface RoomGuestsSectionProps {
   onGuestCountChange?: (kisiSayisi: number) => void
 }
 
-interface GuestFormState {
-  fullName: string
-  tcNo: string
-  phone: string
-  notes: string
-}
+interface GuestFormState extends GuestFormValues {}
 
 const EMPTY_FORM: GuestFormState = {
   fullName: '',
@@ -38,8 +43,8 @@ const GUEST_SAVE_SUCCESS_MESSAGE = 'Misafir başarıyla kaydedildi.'
 
 function guestToForm(guest: GuestEntryWithPhotos): GuestFormState {
   return {
-    fullName: guest.full_name,
-    tcNo: guest.tc_no ?? '',
+    fullName: applyGuestFullNameInput(guest.full_name),
+    tcNo: applyGuestTcInput(guest.tc_no ?? ''),
     phone: guest.phone ?? '',
     notes: guest.notes ?? '',
   }
@@ -57,6 +62,8 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<GuestFormState>(EMPTY_FORM)
+  const [createFormErrors, setCreateFormErrors] = useState<GuestFormFieldErrors>({})
+  const [editFormErrors, setEditFormErrors] = useState<GuestFormFieldErrors>({})
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<GuestFormState>(EMPTY_FORM)
   const [deleteConfirmGuestId, setDeleteConfirmGuestId] = useState<string | null>(null)
@@ -192,11 +199,14 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
     event.preventDefault()
     logGuestSection('handleSaveGuest → submit', { reservationId: reservation.id })
 
-    if (!form.fullName.trim()) {
-      setError('Ad Soyad zorunludur.')
+    const fieldErrors = validateGuestFormFields(form)
+    if (hasGuestFormErrors(fieldErrors)) {
+      setCreateFormErrors(fieldErrors)
+      setError(null)
       return
     }
 
+    setCreateFormErrors({})
     setSaving(true)
     setError(null)
     setSuccess(null)
@@ -236,11 +246,14 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
   async function handleUpdateGuest(event: React.FormEvent, guestId: string) {
     event.preventDefault()
 
-    if (!editForm.fullName.trim()) {
-      setError('Ad Soyad zorunludur.')
+    const fieldErrors = validateGuestFormFields(editForm)
+    if (hasGuestFormErrors(fieldErrors)) {
+      setEditFormErrors(fieldErrors)
+      setError(null)
       return
     }
 
+    setEditFormErrors({})
     setSaving(true)
     setError(null)
 
@@ -343,9 +356,21 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
   function startEditing(guest: GuestEntryWithPhotos) {
     setEditingGuestId(guest.id)
     setEditForm(guestToForm(guest))
+    setEditFormErrors({})
+    setCreateFormErrors({})
     setDeleteConfirmGuestId(null)
     setError(null)
     setSuccess(null)
+  }
+
+  function handleCreateFormChange(updates: Partial<GuestFormState>) {
+    setForm((prev) => ({ ...prev, ...updates }))
+    setCreateFormErrors({})
+  }
+
+  function handleEditFormChange(updates: Partial<GuestFormState>) {
+    setEditForm((prev) => ({ ...prev, ...updates }))
+    setEditFormErrors({})
   }
 
   return (
@@ -389,14 +414,19 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
             >
               {editingGuestId === guest.id ? (
                 <form
+                  noValidate
                   onSubmit={(event) => void handleUpdateGuest(event, guest.id)}
                   className="space-y-3"
                 >
-                  <GuestFormFields form={editForm} onChange={setEditForm} />
+                  <GuestFormFields
+                    form={editForm}
+                    onChange={handleEditFormChange}
+                    errors={editFormErrors}
+                  />
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="submit"
-                      disabled={saving}
+                      disabled={saving || !isGuestFormSubmittable(editForm)}
                       className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
                     >
                       {saving ? 'Kaydediliyor...' : 'Kaydet'}
@@ -406,6 +436,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
                       onClick={() => {
                         setEditingGuestId(null)
                         setEditForm(EMPTY_FORM)
+                        setEditFormErrors({})
                       }}
                       className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
                     >
@@ -511,16 +542,6 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
                       onDelete={handleConfirmDeletePhoto}
                       deleting={deleting}
                     />
-                    <GuestPhotoUpload
-                      guestEntryId={guest.id}
-                      reservationId={reservation.id}
-                      photoType="guest_photo"
-                      disabled={!canUploadPhotos}
-                      existingPhoto={guest.photos.find((photo) => photo.photo_type === 'guest_photo') ?? null}
-                      onUploaded={handlePhotoUploaded}
-                      onDelete={handleConfirmDeletePhoto}
-                      deleting={deleting}
-                    />
                   </div>
                 </>
               )}
@@ -537,6 +558,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
             setShowForm(true)
             setEditingGuestId(null)
             setDeleteConfirmGuestId(null)
+            setCreateFormErrors({})
             setSuccess(null)
           }}
           className="mt-4 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
@@ -545,18 +567,20 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
         </button>
       ) : (
         <form
+          noValidate
           onSubmit={(event) => void handleSaveGuest(event)}
           className="mt-4 space-y-3 rounded-xl border border-indigo-100 bg-white p-4"
         >
           <GuestFormFields
             form={form}
-            onChange={setForm}
+            onChange={handleCreateFormChange}
+            errors={createFormErrors}
             fullNameInputRef={fullNameInputRef}
           />
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !isGuestFormSubmittable(form)}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
             >
               {saving ? 'Kaydediliyor...' : 'Kaydet'}
@@ -566,6 +590,7 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
               onClick={() => {
                 setShowForm(false)
                 setForm(EMPTY_FORM)
+                setCreateFormErrors({})
               }}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
             >
@@ -575,59 +600,5 @@ export function RoomGuestsSection({ reservation, onGuestCountChange }: RoomGuest
         </form>
       )}
     </section>
-  )
-}
-
-function GuestFormFields({
-  form,
-  onChange,
-  fullNameInputRef,
-}: {
-  form: GuestFormState
-  onChange: (form: GuestFormState) => void
-  fullNameInputRef?: React.RefObject<HTMLInputElement | null>
-}) {
-  return (
-    <>
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium text-slate-700">Ad Soyad</span>
-        <input
-          ref={fullNameInputRef}
-          type="text"
-          value={form.fullName}
-          onChange={(event) => onChange({ ...form, fullName: event.target.value })}
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-indigo-600 focus:ring-2"
-          required
-        />
-      </label>
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium text-slate-700">TC Kimlik No</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          value={form.tcNo}
-          onChange={(event) => onChange({ ...form, tcNo: event.target.value })}
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-indigo-600 focus:ring-2"
-        />
-      </label>
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium text-slate-700">Telefon</span>
-        <input
-          type="tel"
-          value={form.phone}
-          onChange={(event) => onChange({ ...form, phone: event.target.value })}
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-indigo-600 focus:ring-2"
-        />
-      </label>
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium text-slate-700">Not</span>
-        <textarea
-          value={form.notes}
-          onChange={(event) => onChange({ ...form, notes: event.target.value })}
-          rows={2}
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-indigo-600 focus:ring-2"
-        />
-      </label>
-    </>
   )
 }

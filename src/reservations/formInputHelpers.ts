@@ -1,5 +1,22 @@
 export function toTurkishUppercase(value: string): string {
-  return value.toLocaleUpperCase('tr-TR')
+  return value
+    .replace(/i/g, 'İ')
+    .replace(/ı/g, 'I')
+    .toLocaleUpperCase('tr-TR')
+}
+
+export function normalizeTcDigits(input: string): string {
+  return input.replace(/\D/g, '').slice(0, 11)
+}
+
+export function validateTcNumber(value: string): string | null {
+  const digits = normalizeTcDigits(value)
+
+  if (digits.length !== 11) {
+    return 'TC Kimlik Numarası 11 haneli olmalıdır.'
+  }
+
+  return null
 }
 
 export function normalizePhoneDigits(input: string): string {

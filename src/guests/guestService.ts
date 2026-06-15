@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { toTurkishUppercase } from '../reservations/formInputHelpers'
 import type { GuestEntry, GuestPhoto, GuestPhotoType, Reservation } from '../types/database'
 import type { GuestEntryWithPhotos } from './guestTypes'
 
@@ -62,6 +63,15 @@ export function getGuestPhotoUploadErrorMessage(error: unknown) {
   }
 
   return GUEST_PHOTO_UPLOAD_FAILED_MESSAGE
+}
+
+function normalizeGuestTcNo(tcNo?: string) {
+  const digits = tcNo?.replace(/\D/g, '').slice(0, 11) ?? ''
+  return digits || null
+}
+
+function normalizeGuestFullName(fullName: string) {
+  return toTurkishUppercase(fullName.trim())
 }
 
 function throwGuestPhotoUploadFailed(): never {
@@ -204,8 +214,8 @@ export async function createGuestEntry(input: CreateGuestEntryInput): Promise<Gu
     .from('guest_entries')
     .insert({
       reservation_id: input.reservationId,
-      full_name: input.fullName.trim(),
-      tc_no: input.tcNo?.trim() || null,
+      full_name: normalizeGuestFullName(input.fullName),
+      tc_no: normalizeGuestTcNo(input.tcNo),
       phone: input.phone?.trim() || null,
       notes: input.notes?.trim() || null,
     } as never)
@@ -244,8 +254,8 @@ export async function updateGuestEntry(input: UpdateGuestEntryInput): Promise<Gu
   const { data, error } = await client
     .from('guest_entries')
     .update({
-      full_name: input.fullName.trim(),
-      tc_no: input.tcNo?.trim() || null,
+      full_name: normalizeGuestFullName(input.fullName),
+      tc_no: normalizeGuestTcNo(input.tcNo),
       phone: input.phone?.trim() || null,
       notes: input.notes?.trim() || null,
     } as never)
@@ -298,6 +308,7 @@ export async function deleteGuestPhoto(photoId: string, storagePath: string): Pr
 export async function deleteGuestEntry(
   guestEntryId: string,
   reservationId: string,
+  options?: { syncGuestCount?: boolean },
 ): Promise<void> {
   const client = assertSupabaseClient()
 
@@ -327,7 +338,9 @@ export async function deleteGuestEntry(
     throw new Error(countError.message)
   }
 
-  await syncReservationGuestCount(reservationId, count ?? 0)
+  if (options?.syncGuestCount !== false) {
+    await syncReservationGuestCount(reservationId, count ?? 0)
+  }
 }
 
 export async function uploadGuestPhoto(

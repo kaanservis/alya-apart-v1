@@ -46,6 +46,7 @@ export interface GuestEntry {
   reservation_id: string
   full_name: string
   tc_no: string | null
+  birth_date?: string | null
   phone: string | null
   notes: string | null
   created_at: string
