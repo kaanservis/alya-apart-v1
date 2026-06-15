@@ -18,6 +18,7 @@ import { ReservationHistoryPage } from '../reservations/ReservationHistoryPage'
 import { ReservationsManagementPage } from '../reservations/ReservationsManagementPage'
 import { useWorkflowData } from '../workflow/useWorkflowData'
 import { WorkflowDashboard } from '../workflow/WorkflowDashboard'
+import { AppToast } from '../components/AppToast'
 import { AppSidebar } from './AppSidebar'
 import {
   APP_ROUTES,
@@ -45,6 +46,7 @@ export function AppShellPage() {
   const [activeTab, setActiveTab] = useState<AppTab>(() => readTabFromLocation())
   const [refreshToken, setRefreshToken] = useState(0)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const { units, reservations, loading, error, refetch } = useWorkflowData(seasonYear)
   const {
@@ -85,6 +87,13 @@ export function AppShellPage() {
   function handleUpdated() {
     refetch()
     setRefreshToken((current) => current + 1)
+  }
+
+  function handleOdaKabulComplete() {
+    handleUpdated()
+    handleTabChange('dashboard')
+    setMobileNavOpen(false)
+    setToastMessage('✓ Oda kabul işlemi başarıyla tamamlandı.')
   }
 
   function handleExpensesUpdated() {
@@ -130,14 +139,14 @@ export function AppShellPage() {
 
       <div className="flex min-h-screen flex-col lg:pl-64">
         <header className="sticky top-0 z-30 border-b border-blue-900/20 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 shadow-lg shadow-blue-900/20">
-          <div className="flex items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 px-3 py-3 max-md:py-2.5 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
             <button
               type="button"
               onClick={() => setMobileNavOpen(true)}
-              className="rounded-xl bg-white/10 p-2.5 text-white ring-1 ring-white/20 lg:hidden"
+              className="rounded-lg bg-white/10 p-2 text-white ring-1 ring-white/20 lg:hidden max-md:p-1.5"
               aria-label="Menüyü aç"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4 max-md:h-4 max-md:w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -148,10 +157,10 @@ export function AppShellPage() {
             </button>
 
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/80">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-100/80 max-md:text-[9px] sm:text-xs sm:tracking-[0.18em]">
                 {activeRoute?.menuLabel ?? 'ALYA APART'}
               </p>
-              <h1 className="truncate text-xl font-bold tracking-tight text-white sm:text-2xl">
+              <h1 className="truncate text-lg font-bold tracking-tight text-white max-md:text-base sm:text-xl sm:text-2xl">
                 {activeRoute?.label ?? 'ALYA APART TAKİP SİSTEMİ'}
               </h1>
               <p className="mt-1 hidden max-w-3xl text-sm text-blue-100/90 sm:block">
@@ -161,7 +170,7 @@ export function AppShellPage() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 px-3 py-4 max-md:py-3 sm:px-6 sm:py-6 lg:px-8">
           <div className="mx-auto max-w-[1400px]">
             {showSharedLoading && (
               <div className="rounded-2xl border border-blue-100 bg-white p-10 text-center shadow-sm">
@@ -181,6 +190,7 @@ export function AppShellPage() {
                 units={units}
                 reservations={reservations}
                 onUpdated={handleUpdated}
+                onOdaKabulComplete={handleOdaKabulComplete}
               />
             )}
 
@@ -191,6 +201,8 @@ export function AppShellPage() {
                 seasonYear={seasonYear}
                 loading={loading}
                 error={error}
+                onUpdated={handleUpdated}
+                onSaveSuccess={(message) => setToastMessage(message)}
               />
             )}
 
@@ -205,7 +217,11 @@ export function AppShellPage() {
             )}
 
             {activeTab === 'customers' && (
-          <CustomersPage refreshToken={refreshToken} onUpdated={handleUpdated} />
+          <CustomersPage
+            refreshToken={refreshToken}
+            onUpdated={handleUpdated}
+            onOdaKabulComplete={handleOdaKabulComplete}
+          />
         )}
 
         {activeTab === 'history' && (
@@ -241,6 +257,10 @@ export function AppShellPage() {
           </div>
         </main>
       </div>
+
+      {toastMessage && (
+        <AppToast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+      )}
     </div>
   )
 }

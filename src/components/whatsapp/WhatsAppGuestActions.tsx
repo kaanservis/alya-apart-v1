@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   buildWhatsAppMessage,
   getGuestWhatsAppUrl,
@@ -10,6 +11,7 @@ interface WhatsAppGuestActionsProps {
   adSoyad: string
   kalanBakiye?: number
   compact?: boolean
+  iconOnly?: boolean
   className?: string
 }
 
@@ -18,13 +20,80 @@ export function WhatsAppGuestActions({
   adSoyad,
   kalanBakiye,
   compact = false,
+  iconOnly = false,
   className = '',
 }: WhatsAppGuestActionsProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const normalizedPhone = phone.replace(/\D/g, '')
 
   if (!normalizedPhone) {
+    if (iconOnly) {
+      return null
+    }
+
     return (
       <p className={`text-sm text-slate-500 ${className}`}>WhatsApp için telefon numarası yok.</p>
+    )
+  }
+
+  if (iconOnly) {
+    return (
+      <div className={`relative inline-flex items-center gap-0.5 ${className}`}>
+        <a
+          href={getGuestWhatsAppUrl(phone)}
+          target="_blank"
+          rel="noreferrer"
+          title={`${adSoyad} — WhatsApp`}
+          onClick={(event) => event.stopPropagation()}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition hover:bg-[#1ebe57] max-md:h-7 max-md:w-7"
+        >
+          <WhatsAppIcon className="h-4 w-4 max-md:h-3.5 max-md:w-3.5" />
+        </a>
+        <button
+          type="button"
+          title="Hızlı mesajlar"
+          onClick={(event) => {
+            event.stopPropagation()
+            setMenuOpen((current) => !current)
+          }}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#25D366]/30 bg-white text-[10px] font-bold text-emerald-800 hover:bg-[#25D366]/10 max-md:h-5 max-md:w-5"
+        >
+          ⋮
+        </button>
+        {menuOpen && (
+          <>
+            <button
+              type="button"
+              aria-label="Menüyü kapat"
+              className="fixed inset-0 z-40"
+              onClick={(event) => {
+                event.stopPropagation()
+                setMenuOpen(false)
+              }}
+            />
+            <div className="absolute right-0 top-full z-50 mt-1 min-w-[10rem] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+              {WHATSAPP_QUICK_MESSAGES.map((item) => (
+                <a
+                  key={item.template}
+                  href={getGuestWhatsAppUrl(
+                    phone,
+                    buildWhatsAppMessage(item.template, { adSoyad, kalanBakiye }),
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setMenuOpen(false)
+                  }}
+                  className="block px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     )
   }
 

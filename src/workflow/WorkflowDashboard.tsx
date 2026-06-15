@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { SupabaseConnectionTest } from '../components/SupabaseConnectionTest'
+import { GuestCheckInPanel } from '../guests/GuestCheckInPanel'
+import { exportGuestRegistrationPdf } from '../guests/guestRegistrationPdf'
 import { RoomDetailPanel } from '../rooms/RoomDetailPanel'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import { ReservationFormPanel } from '../reservations/ReservationFormPanel'
@@ -15,12 +17,19 @@ import {
   getUnitStatusCounts,
 } from './unitStatusLogic'
 import { QuickBackupButton } from '../backup/QuickBackupButton'
+import {
+  adminPageStack,
+  adminPageEyebrow,
+  adminPageTitle,
+  adminPrimaryCta,
+} from '../components/admin/adminMobileStyles'
 import { WorkflowUnitCard } from './WorkflowUnitCard'
 
 interface WorkflowDashboardProps {
   units: AccommodationUnit[]
   reservations: Reservation[]
   onUpdated: () => void
+  onOdaKabulComplete?: () => void
 }
 
 type SummaryPanelKey = 'dolu' | 'bos' | 'cikis' | 'temizlik'
@@ -72,11 +81,27 @@ const summaryCards: {
   },
 ]
 
-export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDashboardProps) {
+export function WorkflowDashboard({
+  units,
+  reservations,
+  onUpdated,
+  onOdaKabulComplete,
+}: WorkflowDashboardProps) {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formKey, setFormKey] = useState(0)
   const [expandedPanel, setExpandedPanel] = useState<SummaryPanelKey | null>(null)
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
+  const [checkInReservation, setCheckInReservation] = useState<Reservation | null>(null)
+
+  function handleWorkflowUpdated() {
+    onUpdated()
+  }
+
+  function handleOdaKabulComplete() {
+    setCheckInReservation(null)
+    setSelectedUnitId(null)
+    onOdaKabulComplete?.()
+  }
 
   const statusCounts = useMemo(() => getUnitStatusCounts(units), [units])
   const checkoutPending = useMemo(
@@ -113,8 +138,16 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
     [units, selectedUnitId],
   )
 
+  const checkInUnit = useMemo(() => {
+    if (!checkInReservation) {
+      return null
+    }
+
+    return units.find((unit) => unit.id === checkInReservation.konaklama_birimi_id) ?? null
+  }, [checkInReservation, units])
+
   function handleSaved() {
-    onUpdated()
+    handleWorkflowUpdated()
     setShowCreateForm(false)
     setFormKey((current) => current + 1)
   }
@@ -124,26 +157,26 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className={adminPageStack}>
       <section>
         <button
           type="button"
           onClick={() => setShowCreateForm((current) => !current)}
-          className={`group relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-6 py-7 text-white shadow-xl shadow-blue-700/30 transition-all hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-blue-700/40 sm:px-10 sm:py-8 ${
+          className={`${adminPrimaryCta} ${
             showCreateForm ? 'ring-4 ring-blue-200' : ''
           }`}
         >
           <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-3xl transition-transform group-hover:scale-110" />
           <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-indigo-400/20 blur-2xl" />
           <div className="relative flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-6">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-3xl font-bold ring-1 ring-white/25 backdrop-blur-sm">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl font-bold ring-1 ring-white/25 backdrop-blur-sm">
               +
             </span>
             <div className="text-center sm:text-left">
               <p className="text-2xl font-bold uppercase tracking-wide sm:text-3xl">
                 Yeni Rezervasyon
               </p>
-              <p className="mt-1 text-sm text-blue-100/90">
+              <p className="mt-1 text-sm text-blue-100/90 max-md:text-xs">
                 {showCreateForm
                   ? 'Formu gizlemek için tıklayın'
                   : 'Yeni rezervasyon oluşturmak için tıklayın'}
@@ -163,7 +196,7 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
         />
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 max-md:gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {summaryCards.map((card) => {
           const isExpanded = expandedPanel === card.key
 
@@ -172,18 +205,22 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
               key={card.key}
               type="button"
               onClick={() => toggleSummaryPanel(card.key)}
-              className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${card.gradient} p-6 text-left text-white shadow-lg ${card.shadow} transition-all hover:-translate-y-0.5 ${
+              className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${card.gradient} p-4 text-left text-white shadow-lg max-md:p-3 sm:rounded-2xl sm:p-6 ${card.shadow} transition-all hover:-translate-y-0.5 ${
                 isExpanded ? `ring-4 ${card.ring}` : ''
               }`}
             >
               <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/20 blur-2xl" />
-              <div className="relative flex min-h-[120px] flex-col justify-between">
+              <div className="relative flex min-h-[88px] flex-col justify-between max-md:min-h-[72px] sm:min-h-[120px]">
                 <div>
-                  <p className="text-sm font-semibold text-white/90">{card.label}</p>
-                  <p className="mt-0.5 text-xs text-white/70">{card.subtitle}</p>
+                  <p className="text-xs font-semibold text-white/90 max-md:text-[11px] sm:text-sm">
+                    {card.label}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-white/70 max-md:text-[9px] sm:text-xs">
+                    {card.subtitle}
+                  </p>
                 </div>
-                <div className="mt-4 flex items-end justify-between gap-2">
-                  <p className="text-4xl font-bold tracking-tight sm:text-5xl">
+                <div className="mt-3 flex items-end justify-between gap-2 max-md:mt-2 sm:mt-4">
+                  <p className="text-3xl font-bold tracking-tight max-md:text-2xl sm:text-4xl lg:text-5xl">
                     {statusCounts[card.countKey]}
                   </p>
                   <span className="text-xs font-semibold uppercase tracking-wide text-white/80">
@@ -197,14 +234,14 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
       </section>
 
       {expandedPanel && (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg ring-1 ring-slate-100">
-          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/50 px-5 py-4 sm:px-6">
-            <h3 className="text-base font-bold text-slate-900">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ring-1 ring-slate-100 max-md:rounded-xl sm:rounded-2xl">
+          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/50 px-3 py-3 max-md:px-3 max-md:py-2.5 sm:px-6 sm:py-4">
+            <h3 className="text-sm font-bold text-slate-900 max-md:text-xs sm:text-base">
               {summaryCards.find((card) => card.key === expandedPanel)?.label}
             </h3>
           </div>
 
-          <div className="p-5 sm:p-6">
+          <div className="p-3 max-md:p-2.5 sm:p-6">
             {expandedPanel === 'dolu' && (
               <>
                 {doluEntries.length === 0 ? (
@@ -298,19 +335,17 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
       )}
 
       <section>
-        <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-3 flex flex-col gap-1 max-md:mb-2 sm:mb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
-              Oda Listesi
-            </p>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Odalar</h2>
+            <p className={adminPageEyebrow}>Oda Listesi</p>
+            <h2 className={`${adminPageTitle} max-md:mt-0.5`}>Odalar</h2>
           </div>
-          <span className="inline-flex w-fit items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">
+          <span className="inline-flex w-fit items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 max-md:text-[10px] sm:px-3 sm:py-1 sm:text-sm">
             {units.length} oda
           </span>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-3 max-md:gap-2.5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {units.map((unit) => {
             const activeReservation = findActiveReservationForUnit(unit.id, reservations)
             const nextReservation = findNextReservationForUnit(unit.id, reservations)
@@ -326,17 +361,30 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
                 checkoutReservationId={
                   unit.status === 'Çıkış Bekliyor' ? checkoutReservationId : undefined
                 }
-                onUpdated={onUpdated}
+                onUpdated={handleWorkflowUpdated}
                 onSelect={() => setSelectedUnitId(unit.id)}
+                onOpenCheckIn={(reservation) => setCheckInReservation(reservation)}
+                onOpenPayment={() => setSelectedUnitId(unit.id)}
+                onOpenPdf={(reservation) => {
+                  void exportGuestRegistrationPdf(unit.name, reservation)
+                }}
               />
             )
           })}
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-2">
-        <CheckoutAlertSection units={units} reservations={reservations} onUpdated={onUpdated} />
-        <CleaningAlertSection units={units} reservations={reservations} onUpdated={onUpdated} />
+      <section className="grid gap-3 max-md:gap-2.5 sm:gap-5 lg:grid-cols-2">
+        <CheckoutAlertSection
+          units={units}
+          reservations={reservations}
+          onUpdated={handleWorkflowUpdated}
+        />
+        <CleaningAlertSection
+          units={units}
+          reservations={reservations}
+          onUpdated={handleWorkflowUpdated}
+        />
       </section>
 
       <SupabaseConnectionTest collapsible defaultCollapsed title="Sistem Durumu" />
@@ -352,7 +400,19 @@ export function WorkflowDashboard({ units, reservations, onUpdated }: WorkflowDa
             findActiveReservationForUnit(selectedUnit.id, reservations)?.id
           }
           onClose={() => setSelectedUnitId(null)}
-          onUpdated={onUpdated}
+          onUpdated={handleWorkflowUpdated}
+          onOdaKabulComplete={handleOdaKabulComplete}
+        />
+      )}
+
+      {checkInReservation && checkInUnit && (
+        <GuestCheckInPanel
+          open
+          onClose={() => setCheckInReservation(null)}
+          reservation={checkInReservation}
+          unitName={checkInUnit.name}
+          onUpdated={handleWorkflowUpdated}
+          onOdaKabulComplete={handleOdaKabulComplete}
         />
       )}
     </div>

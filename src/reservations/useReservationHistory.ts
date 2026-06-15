@@ -13,6 +13,7 @@ export interface ReservationHistoryFilters {
   unitId: string
   dateFrom: string
   dateTo: string
+  status: 'all' | 'gecmis' | 'iptal' | 'noshow'
 }
 
 export const EMPTY_HISTORY_FILTERS: ReservationHistoryFilters = {
@@ -20,6 +21,7 @@ export const EMPTY_HISTORY_FILTERS: ReservationHistoryFilters = {
   unitId: '',
   dateFrom: '',
   dateTo: '',
+  status: 'all',
 }
 
 function filterReservations(
@@ -30,6 +32,18 @@ function filterReservations(
   const query = filters.query.trim().toLowerCase()
 
   return reservations.filter((reservation) => {
+    if (filters.status === 'gecmis' && reservation.durum !== 'Geçmiş') {
+      return false
+    }
+
+    if (filters.status === 'iptal' && reservation.durum !== 'İptal') {
+      return false
+    }
+
+    if (filters.status === 'noshow' && reservation.durum !== 'No Show') {
+      return false
+    }
+
     if (filters.unitId && reservation.konaklama_birimi_id !== filters.unitId) {
       return false
     }
@@ -90,7 +104,7 @@ export function useReservationHistory(refreshToken = 0) {
         supabase
           .from('reservations')
           .select('*')
-          .eq('durum', 'Geçmiş')
+          .in('durum', ['Geçmiş', 'İptal', 'No Show'])
           .order('cikis_tarihi', { ascending: false }),
       ])
 

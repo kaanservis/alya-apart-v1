@@ -54,14 +54,20 @@ function overlapNights(
   return calculateNights(effectiveStart, effectiveEnd)
 }
 
+function isReportableReservation(reservation: Pick<Reservation, 'durum'>) {
+  return reservation.durum !== 'İptal' && reservation.durum !== 'No Show'
+}
+
 function filterReservationsInRange(reservations: Reservation[], range: ReportDateRange) {
-  return reservations.filter((reservation) =>
-    reservationOverlapsRange(
-      reservation.giris_tarihi,
-      reservation.cikis_tarihi,
-      range.start,
-      range.end,
-    ),
+  return reservations.filter(
+    (reservation) =>
+      isReportableReservation(reservation) &&
+      reservationOverlapsRange(
+        reservation.giris_tarihi,
+        reservation.cikis_tarihi,
+        range.start,
+        range.end,
+      ),
   )
 }
 

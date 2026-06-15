@@ -4,6 +4,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { SlideOverPanel } from '../components/SlideOverPanel'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
 import { exportGuestRegistrationPdf } from '../guests/guestRegistrationPdf'
+import { GuestCheckInPanel } from '../guests/GuestCheckInPanel'
 import { exportRoomReservationsExcel } from '../customers/customerExports'
 import { findRoomReservations } from '../customers/customerListUtils'
 import { formatReservationDate } from '../reservations/reservationDisplay'
@@ -16,8 +17,10 @@ import {
   getTodayKey,
   normalizeUnitStatus,
 } from '../workflow/unitStatusLogic'
+import { ReservationDetailActions } from '../reservations/ReservationDetailActions'
 import { completeCheckout, completeCleaning } from '../workflow/workflowService'
-import { WorkflowStatusBadge } from '../workflow/WorkflowStatusBadge'
+import { computeRoomDisplayStatus } from '../workflow/roomDisplayStatus'
+import { CheckInCompleteBadge, WorkflowStatusBadge } from '../workflow/WorkflowStatusBadge'
 import { logReservationDetail } from './roomDetailLog'
 
 interface RoomDetailPanelProps {
@@ -26,6 +29,7 @@ interface RoomDetailPanelProps {
   checkoutReservationId?: string
   onClose: () => void
   onUpdated: () => void
+  onOdaKabulComplete?: () => void
 }
 
 export function RoomDetailPanel({
@@ -34,11 +38,13 @@ export function RoomDetailPanel({
   checkoutReservationId,
   onClose,
   onUpdated,
+  onOdaKabulComplete,
 }: RoomDetailPanelProps) {
   const [roomHistory, setRoomHistory] = useState<Reservation[]>([])
   const [activeReservationState, setActiveReservationState] = useState<Reservation | null>(null)
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [checkInOpen, setCheckInOpen] = useState(false)
   const renderCountRef = useRef(0)
   const loadReservationCallCountRef = useRef(0)
   const onUpdatedRef = useRef(onUpdated)
@@ -166,6 +172,10 @@ export function RoomDetailPanel({
 
   const displayedReservation = activeReservationState ?? activeReservation
   const checkoutId = checkoutReservationId ?? displayedReservation?.id
+  const displayStatus = useMemo(
+    () => computeRoomDisplayStatus(unit, displayedReservation ?? undefined),
+    [unit, displayedReservation],
+  )
 
   const guestSectionReservation = useMemo(() => {
     if (!displayedReservation) {
@@ -241,16 +251,20 @@ export function RoomDetailPanel({
   }
 
   return (
-    <SlideOverPanel
-      open
-      onClose={onClose}
-      title={unit.name}
-      subtitle="Oda detayları"
-      wide
-    >
+    <>
+      <SlideOverPanel
+        open
+        onClose={onClose}
+        title={unit.name}
+        subtitle="Oda detayları"
+        wide
+      >
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-3">
-          <WorkflowStatusBadge status={unitStatus} />
+          <div className="flex flex-wrap items-center gap-2">
+            <WorkflowStatusBadge status={displayStatus} />
+            {displayedReservation?.oda_kabul_yapildi && <CheckInCompleteBadge />}
+          </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -311,6 +325,18 @@ export function RoomDetailPanel({
               <ReservationTahsilatSection
                 reservation={displayedReservation}
                 onUpdated={handleTahsilatUpdated}
+              />
+            </div>
+            <div className="mt-5 border-t border-purple-100 pt-5">
+              <h4 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-600">
+                Rezervasyon İşlemleri
+              </h4>
+              <ReservationDetailActions
+                reservation={displayedReservation}
+                unit={unit}
+                onUpdated={onUpdated}
+                onOpenCheckIn={() => setCheckInOpen(true)}
+                onExportPdf={() => void exportGuestRegistrationPdf(unit.name, displayedReservation)}
               />
             </div>
             <div className="mt-5 border-t border-purple-100 pt-5">
@@ -415,6 +441,22 @@ export function RoomDetailPanel({
           )}
         </section>
       </div>
-    </SlideOverPanel>
+      </SlideOverPanel>
+
+      {displayedReservation && checkInOpen && (
+        <GuestCheckInPanel
+          open
+          onClose={() => setCheckInOpen(false)}
+          reservation={displayedReservation}
+          unitName={unit.name}
+          onUpdated={onUpdated}
+          onOdaKabulComplete={() => {
+            setCheckInOpen(false)
+            onClose()
+            onOdaKabulComplete?.()
+          }}
+        />
+      )}
+    </>
   )
 }

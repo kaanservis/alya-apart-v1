@@ -1,5 +1,12 @@
 export type UnitStatus = 'Boş' | 'Dolu' | 'Çıkış Bekliyor' | 'Temizlik Bekliyor'
-export type ReservationStatus = 'Aktif' | 'Geçmiş'
+export type ReservationStatus = 'Aktif' | 'Geçmiş' | 'İptal' | 'No Show'
+
+export type RoomDisplayStatus =
+  | 'Boş'
+  | 'Bugün Giriş'
+  | 'Dolu'
+  | 'Çıkış Bugün'
+  | 'Temizlik Bekliyor'
 
 export interface AccommodationUnit {
   id: string
@@ -26,6 +33,8 @@ export interface Reservation {
   alinan_tutar: number
   notlar: string | null
   durum: ReservationStatus
+  oda_kabul_yapildi?: boolean
+  oda_kabul_tarihi?: string | null
   created_at: string
   updated_at: string
 }
@@ -381,7 +390,7 @@ export const UNIT_STATUSES: UnitStatus[] = [
   'Temizlik Bekliyor',
 ]
 
-export const RESERVATION_STATUSES: ReservationStatus[] = ['Aktif', 'Geçmiş']
+export const RESERVATION_STATUSES: ReservationStatus[] = ['Aktif', 'Geçmiş', 'İptal', 'No Show']
 
 export const UNIT_NAMES = [
   'Yaren 2',

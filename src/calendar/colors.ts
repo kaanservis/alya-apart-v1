@@ -19,6 +19,18 @@ export const CALENDAR_BAR_STYLES: Record<CalendarCellState, string> = {
     'bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 shadow-orange-500/30',
 }
 
+export const CALENDAR_BAR_PENDING_STYLE =
+  'bg-gradient-to-r from-violet-500 to-purple-600 ring-2 ring-amber-300 ring-offset-1 shadow-purple-500/30'
+
+export const CALENDAR_BAR_PAST_STYLE =
+  'bg-gradient-to-r from-slate-400 to-slate-500 text-slate-100 opacity-80 shadow-slate-400/20'
+
+export const CALENDAR_CELL_DROP_TARGET_STYLE =
+  'bg-emerald-200/80 ring-2 ring-inset ring-emerald-500'
+
+export const CALENDAR_CELL_DROP_INVALID_STYLE =
+  'bg-red-100/80 ring-2 ring-inset ring-red-400'
+
 export const CALENDAR_LEGEND: { state: CalendarCellState; label: string }[] = [
   { state: 'available', label: 'Müsait' },
   { state: 'occupied', label: 'Dolu' },

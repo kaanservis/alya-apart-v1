@@ -24,13 +24,18 @@ body {
 }
 
 .room-empty {
-  background-color: #d6ecff;
-  border-color: #2196f3;
+  background-color: #dcfce7;
+  border-color: #22c55e;
+}
+
+.room-today-checkin {
+  background-color: #fecaca;
+  border-color: #dc2626;
 }
 
 .room-occupied {
-  background-color: #e9d5ff;
-  border-color: #8b5cf6;
+  background-color: #dbeafe;
+  border-color: #2563eb;
 }
 
 .room-checkout {
@@ -65,14 +70,22 @@ body {
 }
 
 .room-badge-empty {
-  background-color: #1976d2;
-  border-color: #1976d2;
+  background-color: #16a34a;
+  border-color: #16a34a;
   color: #ffffff;
 }
 
+.room-badge-today-checkin {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.65rem;
+}
+
 .room-badge-occupied {
-  background-color: #7c3aed;
-  border-color: #7c3aed;
+  background-color: #2563eb;
+  border-color: #2563eb;
   color: #ffffff;
 }
 
@@ -100,4 +113,33 @@ body {
 
 .workflow-room-card .workflow-room-text-muted {
   color: rgb(0 0 0 / 0.72);
+}
+
+/* ── Admin panel mobile (≤768px) ── */
+@media (max-width: 768px) {
+  .workflow-room-card {
+    border-width: 2px;
+    border-radius: 1rem;
+  }
+
+  .room-status-badge {
+    gap: 0.2rem;
+    border-width: 1px;
+    padding: 0.2rem 0.45rem;
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+  }
+
+  .room-status-badge-icon {
+    font-size: 0.6rem;
+  }
+
+  .room-badge-today-checkin {
+    font-size: 0.55rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .workflow-room-card .workflow-room-panel {
+    border-radius: 0.625rem;
+  }
 }

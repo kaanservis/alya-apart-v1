@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import {
+  adminActionBtnDanger,
+  adminActionBtnPrimary,
+  adminActionBtnSecondary,
+} from '../components/admin/adminMobileStyles'
 import { PaymentBreakdown } from '../components/PaymentBreakdown'
 import { SlideOverPanel } from '../components/SlideOverPanel'
 import type { AccommodationUnit, Reservation } from '../types/database'
@@ -13,6 +18,8 @@ import { deleteReservation, updateReservation } from '../reservations/reservatio
 import { getAvailableUnits } from '../reservations/validation'
 import { CustomerStayingGuestsSection } from './CustomerStayingGuestsSection'
 import { exportCustomerReservationPdf } from './customerReservationPdf'
+import { GuestCheckInPanel } from '../guests/GuestCheckInPanel'
+import { ReservationDetailActions } from '../reservations/ReservationDetailActions'
 
 interface CustomerDetailPanelProps {
   reservation: Reservation
@@ -21,6 +28,7 @@ interface CustomerDetailPanelProps {
   reservations: Reservation[]
   onClose: () => void
   onUpdated: () => void
+  onOdaKabulComplete?: () => void
 }
 
 type ActionMode = 'view' | 'edit' | 'changeRoom' | 'changeDates'
@@ -32,6 +40,7 @@ export function CustomerDetailPanel({
   reservations,
   onClose,
   onUpdated,
+  onOdaKabulComplete,
 }: CustomerDetailPanelProps) {
   const { hasPermission } = useAuth()
   const canChangeDates = hasPermission('can_change_dates')
@@ -44,6 +53,7 @@ export function CustomerDetailPanel({
   const [exportingPdf, setExportingPdf] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [checkInOpen, setCheckInOpen] = useState(false)
   const [selectedRoomId, setSelectedRoomId] = useState(reservation.konaklama_birimi_id)
   const [checkIn, setCheckIn] = useState(reservation.giris_tarihi)
   const [checkOut, setCheckOut] = useState(reservation.cikis_tarihi)
@@ -51,6 +61,11 @@ export function CustomerDetailPanel({
   const availableRooms = useMemo(() => {
     return getAvailableUnits(units, reservations, checkIn, checkOut, reservation.id)
   }, [units, reservations, checkIn, checkOut, reservation.id])
+
+  const unit = useMemo(
+    () => units.find((item) => item.id === reservation.konaklama_birimi_id),
+    [units, reservation.konaklama_birimi_id],
+  )
 
   async function handleDelete() {
     if (!confirmDelete) {
@@ -126,13 +141,14 @@ export function CustomerDetailPanel({
   }
 
   return (
-    <SlideOverPanel
-      open
-      onClose={onClose}
-      title={reservation.ad_soyad}
-      subtitle={`${unitName} • ${reservation.durum}`}
-      wide
-    >
+    <>
+      <SlideOverPanel
+        open
+        onClose={onClose}
+        title={reservation.ad_soyad}
+        subtitle={`${unitName} • ${reservation.durum}`}
+        wide
+      >
       {mode === 'edit' ? (
         <ReservationFormPanel
           units={units}
@@ -290,28 +306,49 @@ export function CustomerDetailPanel({
 
           {mode === 'view' && (
             <div className="flex flex-col gap-3 border-t border-slate-200 pt-5">
-              <div className="flex flex-wrap gap-2">
+              {unit && (
+                <section className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                  <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-blue-900">
+                    Rezervasyon İşlemleri
+                  </h3>
+                  <ReservationDetailActions
+                    reservation={reservation}
+                    unit={unit}
+                    onUpdated={onUpdated}
+                    onOpenCheckIn={
+                      reservation.durum === 'Aktif' ? () => setCheckInOpen(true) : undefined
+                    }
+                    onExportPdf={() => void handleExportPdf()}
+                    exportingPdf={exportingPdf}
+                  />
+                </section>
+              )}
+
+              <div className="flex flex-wrap gap-1.5 max-md:gap-1 sm:gap-2">
                 <button
                   type="button"
                   onClick={() => setMode('edit')}
-                  className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white"
+                  className={`${adminActionBtnPrimary}`}
                 >
+                  <span aria-hidden>✏️</span>
                   Düzenle
                 </button>
                 <button
                   type="button"
                   onClick={() => setMode('changeRoom')}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                  className={adminActionBtnSecondary}
                 >
-                  Oda Değiştir
+                  <span aria-hidden>🔄</span>
+                  Oda
                 </button>
                 {canChangeDates && (
                   <button
                     type="button"
                     onClick={() => setMode('changeDates')}
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
+                    className={adminActionBtnSecondary}
                   >
-                    Tarih Değiştir
+                    <span aria-hidden>📅</span>
+                    Tarih
                   </button>
                 )}
                 {canDeleteReservations && (
@@ -319,27 +356,36 @@ export function CustomerDetailPanel({
                     type="button"
                     disabled={processing}
                     onClick={handleDelete}
-                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${
-                      confirmDelete ? 'bg-red-700' : 'bg-red-600'
+                    className={`${adminActionBtnDanger} disabled:opacity-60 ${
+                      confirmDelete ? 'bg-red-700 hover:bg-red-800' : ''
                     }`}
                   >
-                    {processing ? 'Siliniyor...' : confirmDelete ? 'Silmeyi Onayla' : 'Sil'}
+                    <span aria-hidden>🗑️</span>
+                    {processing ? '...' : confirmDelete ? 'Onayla' : 'Sil'}
                   </button>
                 )}
               </div>
-
-              <button
-                type="button"
-                disabled={exportingPdf}
-                onClick={() => void handleExportPdf()}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-60 sm:w-auto"
-              >
-                {exportingPdf ? 'PDF Oluşturuluyor...' : 'PDF Oluştur'}
-              </button>
             </div>
           )}
         </div>
       )}
-    </SlideOverPanel>
+
+      </SlideOverPanel>
+
+      {checkInOpen && (
+        <GuestCheckInPanel
+          open
+          onClose={() => setCheckInOpen(false)}
+          reservation={reservation}
+          unitName={unitName}
+          onUpdated={onUpdated}
+          onOdaKabulComplete={() => {
+            setCheckInOpen(false)
+            onClose()
+            onOdaKabulComplete?.()
+          }}
+        />
+      )}
+    </>
   )
 }

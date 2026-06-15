@@ -15,12 +15,15 @@ import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 interface CustomersPageProps {
   refreshToken: number
   onUpdated: () => void
+  onOdaKabulComplete?: () => void
 }
 
 const STATUS_FILTERS: { value: CustomerStatusFilter; label: string }[] = [
   { value: 'all', label: 'Tümü' },
   { value: 'aktif', label: 'Aktif' },
   { value: 'gecmis', label: 'Geçmiş' },
+  { value: 'iptal', label: 'İptal' },
+  { value: 'noshow', label: 'No Show' },
 ]
 
 interface CustomerRowContentProps {
@@ -30,11 +33,16 @@ interface CustomerRowContentProps {
 }
 
 function StatusBadge({ status }: { status: CustomerListRow['reservation']['durum'] }) {
+  const styles: Record<CustomerListRow['reservation']['durum'], string> = {
+    Aktif: 'bg-emerald-100 text-emerald-800',
+    'Geçmiş': 'bg-slate-100 text-slate-700',
+    'İptal': 'bg-zinc-200 text-zinc-800',
+    'No Show': 'bg-neutral-100 text-neutral-600',
+  }
+
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
-        status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
-      }`}
+      className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold max-md:text-[9px] sm:px-2.5 sm:py-1 sm:text-xs ${styles[status]}`}
     >
       {status}
     </span>
@@ -49,7 +57,7 @@ function CustomerMobileCard({ row, selected, onSelect }: CustomerRowContentProps
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full rounded-2xl border p-4 text-left shadow-sm transition-colors ${
+      className={`w-full rounded-xl border p-3 text-left shadow-sm transition-colors max-md:p-2.5 sm:rounded-2xl sm:p-4 ${
         selected
           ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-200'
           : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/40'
@@ -57,13 +65,13 @@ function CustomerMobileCard({ row, selected, onSelect }: CustomerRowContentProps
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-base font-bold text-slate-900">{reservation.ad_soyad}</p>
-          <p className="mt-1 text-sm text-slate-600">{reservation.telefon}</p>
+          <p className="truncate text-sm font-bold text-slate-900 max-md:text-xs sm:text-base">{reservation.ad_soyad}</p>
+          <p className="mt-0.5 text-xs text-slate-600 max-md:text-[11px] sm:text-sm">{reservation.telefon}</p>
         </div>
         <StatusBadge status={reservation.durum} />
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm max-md:mt-2 max-md:gap-y-1.5 sm:mt-4 sm:gap-y-3">
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Oda</dt>
           <dd className="font-semibold text-blue-800">{unitName}</dd>
@@ -93,7 +101,7 @@ function CustomerMobileCard({ row, selected, onSelect }: CustomerRowContentProps
   )
 }
 
-export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
+export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: CustomersPageProps) {
   const {
     units,
     reservations,
@@ -332,6 +340,10 @@ export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
           reservations={reservations}
           onClose={() => setSelectedId(null)}
           onUpdated={handleUpdated}
+          onOdaKabulComplete={() => {
+            setSelectedId(null)
+            onOdaKabulComplete?.()
+          }}
         />
       )}
     </div>

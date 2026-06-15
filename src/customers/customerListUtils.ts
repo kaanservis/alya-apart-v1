@@ -1,6 +1,6 @@
 import type { Reservation } from '../types/database'
 
-export type CustomerStatusFilter = 'all' | 'aktif' | 'gecmis'
+export type CustomerStatusFilter = 'all' | 'aktif' | 'gecmis' | 'iptal' | 'noshow'
 export type CustomerSortField = 'checkIn' | 'checkOut' | 'name'
 
 export interface CustomerListFilters {
@@ -54,6 +54,14 @@ export function filterAndSortCustomers(
       }
 
       if (filters.status === 'gecmis' && reservation.durum !== 'Geçmiş') {
+        return false
+      }
+
+      if (filters.status === 'iptal' && reservation.durum !== 'İptal') {
+        return false
+      }
+
+      if (filters.status === 'noshow' && reservation.durum !== 'No Show') {
         return false
       }
 
