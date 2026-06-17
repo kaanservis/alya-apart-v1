@@ -5,6 +5,10 @@ import {
   adminActionBtnDanger,
   adminActionBtnPrimary,
   adminActionBtnSecondary,
+  adminCariSummaryCard,
+  adminCariSummaryGrid,
+  adminCariSummaryLabel,
+  adminCariSummaryValue,
 } from '../components/admin/adminMobileStyles'
 import { getTurkeyDateKey } from '../lib/turkeyDate'
 import type { PaymentRecord, Reservation } from '../types/database'
@@ -220,29 +224,23 @@ export function ReservationCariHesapSection({
   const content = (
     <div className="space-y-5">
       {showTopSummary && (
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                💰 Toplam Ücret
-              </p>
-              <p className="mt-2 text-2xl font-black text-slate-900">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm max-md:rounded-xl max-md:p-3">
+          <div className={adminCariSummaryGrid}>
+            <div className={`${adminCariSummaryCard} ring-slate-200`}>
+              <p className={adminCariSummaryLabel}>💰 Toplam Ücret</p>
+              <p className={`${adminCariSummaryValue} text-slate-900`}>
                 {formatCurrency(Number(reservation.toplam_ucret))}
               </p>
             </div>
-            <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-100">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                💵 Tahsil Edilen
-              </p>
-              <p className="mt-2 text-2xl font-black text-emerald-800">
+            <div className={`${adminCariSummaryCard} ring-emerald-100`}>
+              <p className={`${adminCariSummaryLabel} text-emerald-700`}>💵 Tahsil Edilen</p>
+              <p className={`${adminCariSummaryValue} text-emerald-800`}>
                 {formatCurrency(totalCollected)}
               </p>
             </div>
-            <div className="rounded-xl bg-white p-4 ring-1 ring-rose-100">
-              <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
-                💳 Kalan Bakiye
-              </p>
-              <p className="mt-2 text-2xl font-black text-rose-700">
+            <div className={`${adminCariSummaryCard} ring-rose-100`}>
+              <p className={`${adminCariSummaryLabel} text-rose-700`}>💳 Kalan Bakiye</p>
+              <p className={`${adminCariSummaryValue} text-rose-700`}>
                 {formatCurrency(remainingBalance)}
               </p>
             </div>

@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useCanViewPrices } from '../../auth/useFormatAdminCurrency'
 import {
+  adminWhatsAppChip,
+  adminWhatsAppChipRow,
+} from '../admin/adminMobileStyles'
+import {
   buildWhatsAppMessage,
   getGuestWhatsAppUrl,
   WHATSAPP_QUICK_MESSAGES,
@@ -35,7 +39,9 @@ export function WhatsAppGuestActions({
     }
 
     return (
-      <p className={`text-sm text-slate-500 ${className}`}>WhatsApp için telefon numarası yok.</p>
+      <p className={`text-sm text-slate-500 max-md:text-[13px] ${className}`}>
+        WhatsApp için telefon numarası yok.
+      </p>
     )
   }
 
@@ -48,9 +54,9 @@ export function WhatsAppGuestActions({
           rel="noreferrer"
           title={`${adSoyad} — WhatsApp`}
           onClick={(event) => event.stopPropagation()}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition hover:bg-[#1ebe57] max-md:h-7 max-md:w-7"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition hover:bg-[#1ebe57]"
         >
-          <WhatsAppIcon className="h-4 w-4 max-md:h-3.5 max-md:w-3.5" />
+          <WhatsAppIcon className="h-4 w-4" />
         </a>
         <button
           type="button"
@@ -59,7 +65,7 @@ export function WhatsAppGuestActions({
             event.stopPropagation()
             setMenuOpen((current) => !current)
           }}
-          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#25D366]/30 bg-white text-[10px] font-bold text-emerald-800 hover:bg-[#25D366]/10 max-md:h-5 max-md:w-5"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#25D366]/30 bg-white text-[10px] font-bold text-emerald-800 hover:bg-[#25D366]/10"
         >
           ⋮
         </button>
@@ -101,24 +107,24 @@ export function WhatsAppGuestActions({
   }
 
   return (
-    <div className={`space-y-3 ${className}`}>
+    <div className={`space-y-3 max-md:space-y-2 ${className}`}>
       <a
         href={getGuestWhatsAppUrl(phone)}
         target="_blank"
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#1ebe57] sm:w-auto"
+        className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#1ebe57] max-md:min-h-[42px] max-md:py-2.5 max-md:text-[13px] sm:w-auto"
       >
-        <WhatsAppIcon className="h-5 w-5" />
+        <WhatsAppIcon className="h-5 w-5 max-md:h-4 max-md:w-4" />
         WhatsApp Gönder
       </a>
 
       {!compact && (
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 max-md:mb-1.5 max-md:text-[10px]">
             Hızlı Mesajlar
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className={`${adminWhatsAppChipRow} admin-whatsapp-chips`}>
             {WHATSAPP_QUICK_MESSAGES.map((item) => (
               <a
                 key={item.template}
@@ -129,9 +135,9 @@ export function WhatsAppGuestActions({
                 target="_blank"
                 rel="noreferrer"
                 onClick={(event) => event.stopPropagation()}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#25D366]/30 bg-[#25D366]/10 px-3 py-2 text-xs font-semibold text-emerald-900 transition hover:bg-[#25D366]/20 sm:text-sm"
+                className={adminWhatsAppChip}
               >
-                <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+                <WhatsAppIcon className="h-4 w-4 shrink-0 text-[#25D366] max-md:h-3.5 max-md:w-3.5" />
                 {item.label}
               </a>
             ))}

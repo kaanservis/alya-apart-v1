@@ -88,7 +88,7 @@ export const GuestIdPhotoSlot = memo(function GuestIdPhotoSlot({
         onClick={handlePreviewClick}
         disabled={uploading}
         title={displayUrl ? `${label} — tam boy görüntüle` : `${label} yükle`}
-        className="group relative h-[70px] w-[100px] overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm transition hover:border-blue-300 hover:shadow disabled:opacity-60"
+        className="guest-id-photo-slot group relative h-[70px] w-[100px] overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm transition hover:border-blue-300 hover:shadow disabled:opacity-60 max-md:h-[55px] max-md:w-[80px]"
       >
         {displayUrl ? (
           <img
@@ -118,7 +118,7 @@ export const GuestIdPhotoSlot = memo(function GuestIdPhotoSlot({
         )}
       </button>
 
-      <span className="max-w-[100px] truncate text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+      <span className="guest-id-photo-slot-label max-w-[100px] truncate text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500 max-md:max-w-[80px] max-md:text-[9px]">
         {shortLabel}
       </span>
 

@@ -379,7 +379,7 @@ export function ReservationGuestsPanel({
 
   if (sectionTitle) {
     return (
-      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5">
+      <section className="slide-over-section rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 max-md:rounded-xl max-md:p-3">
         <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-900">{sectionTitle}</h3>
         {sectionSubtitle && (
           <p className="mt-1 text-sm text-emerald-800/80">{sectionSubtitle}</p>

@@ -1,8 +1,16 @@
 @import 'tailwindcss';
 
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   font-family:
     'Inter',
     system-ui,
@@ -14,6 +22,12 @@ body {
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* Workflow room cards — full container tint by status */
@@ -117,29 +131,95 @@ body {
 
 /* ── Admin panel mobile (≤768px) ── */
 @media (max-width: 768px) {
+  html {
+    font-size: 13px;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  .admin-shell {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .admin-shell-main {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .admin-shell-header {
+    min-height: 0;
+  }
+
+  .slide-over-section {
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .dashboard-compact-stat .dashboard-compact-stat-count {
+    font-size: 1.125rem;
+    line-height: 1;
+    font-weight: 800;
+  }
+
+  .dashboard-compact-stat .dashboard-compact-stat-label {
+    font-size: 9px;
+    line-height: 1.1;
+    font-weight: 600;
+  }
+
   .workflow-room-card {
     border-width: 2px;
-    border-radius: 1rem;
+    border-radius: 10px;
+    padding: 6px !important;
   }
 
   .room-status-badge {
-    gap: 0.2rem;
+    gap: 0.15rem;
     border-width: 1px;
-    padding: 0.2rem 0.45rem;
-    font-size: 0.625rem;
-    letter-spacing: 0.04em;
+    padding: 0.15rem 0.35rem;
+    font-size: 0.5rem;
+    letter-spacing: 0.03em;
   }
 
   .room-status-badge-icon {
-    font-size: 0.6rem;
+    font-size: 0.5rem;
   }
 
   .room-badge-today-checkin {
-    font-size: 0.55rem;
-    padding: 0.2rem 0.4rem;
+    font-size: 0.45rem;
+    padding: 0.15rem 0.3rem;
   }
 
   .workflow-room-card .workflow-room-panel {
-    border-radius: 0.625rem;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin-top: 4px;
+  }
+
+  .workflow-room-card .room-card-icon-btn {
+    width: 26px;
+    height: 26px;
+  }
+
+  .guest-id-photo-slot {
+    width: 72px;
+    height: 50px;
+  }
+
+  .guest-id-photo-slot-label {
+    max-width: 72px;
+    font-size: 8px;
+  }
+
+  .admin-whatsapp-chips {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .admin-whatsapp-chips::-webkit-scrollbar {
+    display: none;
   }
 }

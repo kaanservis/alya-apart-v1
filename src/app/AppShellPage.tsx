@@ -26,6 +26,13 @@ import {
   writeTabToLocation,
   type AppTab,
 } from './routes'
+import {
+  adminShellHeader,
+  adminShellHeaderEyebrow,
+  adminShellHeaderInner,
+  adminShellHeaderTitle,
+  adminShellMain,
+} from '../components/admin/adminMobileStyles'
 import { ensureAdminPath } from './appSection'
 
 function usesSharedWorkflowData(tab: AppTab) {
@@ -129,7 +136,7 @@ export function AppShellPage() {
   const showSharedContent = usesSharedWorkflowData(activeTab) && !loading && units.length > 0
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="admin-shell min-h-screen overflow-x-hidden bg-slate-50">
       <AppSidebar
         activeTab={activeTab}
         onTabChange={handleTabChange}
@@ -137,16 +144,16 @@ export function AppShellPage() {
         onMobileClose={() => setMobileNavOpen(false)}
       />
 
-      <div className="flex min-h-screen flex-col lg:pl-64">
-        <header className="sticky top-0 z-30 border-b border-blue-900/20 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 shadow-lg shadow-blue-900/20">
-          <div className="flex items-center gap-3 px-3 py-3 max-md:py-2.5 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
+      <div className="admin-shell-main flex min-h-screen min-w-0 flex-col overflow-x-hidden lg:pl-64">
+        <header className={`admin-shell-header ${adminShellHeader}`}>
+          <div className={adminShellHeaderInner}>
             <button
               type="button"
               onClick={() => setMobileNavOpen(true)}
-              className="rounded-lg bg-white/10 p-2 text-white ring-1 ring-white/20 lg:hidden max-md:p-1.5"
+              className="rounded-lg bg-white/10 p-2 text-white ring-1 ring-white/20 lg:hidden max-md:p-1"
               aria-label="Menüyü aç"
             >
-              <svg className="h-4 w-4 max-md:h-4 max-md:w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4 max-md:h-3.5 max-md:w-3.5 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -157,10 +164,10 @@ export function AppShellPage() {
             </button>
 
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-100/80 max-md:text-[9px] sm:text-xs sm:tracking-[0.18em]">
+              <p className={adminShellHeaderEyebrow}>
                 {activeRoute?.menuLabel ?? 'ALYA APART'}
               </p>
-              <h1 className="truncate text-lg font-bold tracking-tight text-white max-md:text-base sm:text-xl sm:text-2xl">
+              <h1 className={adminShellHeaderTitle}>
                 {activeRoute?.label ?? 'ALYA APART TAKİP SİSTEMİ'}
               </h1>
               <p className="mt-1 hidden max-w-3xl text-sm text-blue-100/90 sm:block">
@@ -170,8 +177,8 @@ export function AppShellPage() {
           </div>
         </header>
 
-        <main className="flex-1 px-3 py-4 max-md:py-3 sm:px-6 sm:py-6 lg:px-8">
-          <div className="mx-auto max-w-[1400px]">
+        <main className={`admin-shell-main ${adminShellMain}`}>
+          <div className="mx-auto min-w-0 max-w-[1400px] overflow-x-hidden">
             {showSharedLoading && (
               <div className="rounded-2xl border border-blue-100 bg-white p-10 text-center shadow-sm">
                 <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />

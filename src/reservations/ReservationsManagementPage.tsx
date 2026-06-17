@@ -13,6 +13,9 @@ import {
   adminPageStack,
   adminPageTitle,
   adminPrimaryCta,
+  adminPrimaryCtaIcon,
+  adminPrimaryCtaSubtitle,
+  adminPrimaryCtaTitle,
   adminSectionCard,
   adminSectionPadding,
   adminSectionTitle,
@@ -137,12 +140,10 @@ export function ReservationsManagementPage({
           }`}
         >
           <div className="relative flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-6">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl font-bold ring-1 ring-white/25 backdrop-blur-sm">
-              +
-            </span>
+            <span className={adminPrimaryCtaIcon}>+</span>
             <div className="text-center sm:text-left">
-              <p className="text-2xl font-bold uppercase tracking-wide sm:text-3xl">Yeni Rezervasyon</p>
-              <p className="mt-1 text-sm text-blue-100/90 max-md:text-xs">
+              <p className={adminPrimaryCtaTitle}>Yeni Rezervasyon</p>
+              <p className={adminPrimaryCtaSubtitle}>
                 {showCreateForm
                   ? 'Formu gizlemek için tıklayın'
                   : 'Yeni rezervasyon oluşturmak için tıklayın'}

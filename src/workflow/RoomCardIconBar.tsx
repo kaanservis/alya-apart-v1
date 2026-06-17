@@ -23,7 +23,7 @@ function IconButton({
   children: React.ReactNode
   accentClass?: string
 }) {
-  const className = `inline-flex h-8 w-8 items-center justify-center rounded-full border shadow-sm transition max-md:h-7 max-md:w-7 ${accentClass}`
+  const className = `room-card-icon-btn inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm transition max-md:h-[26px] max-md:w-[26px] ${accentClass}`
 
   if (href) {
     return (
@@ -58,7 +58,7 @@ export function RoomCardIconBar({
 }: RoomCardIconBarProps) {
   return (
     <div
-      className={`flex shrink-0 flex-wrap items-center justify-end gap-1 ${className}`}
+      className={`flex shrink-0 flex-nowrap items-center justify-end gap-0.5 max-md:gap-0.5 ${className}`}
       onClick={(event) => event.stopPropagation()}
     >
       {whatsAppUrl && (
@@ -68,7 +68,7 @@ export function RoomCardIconBar({
           accentClass="border-[#25D366]/40 bg-[#25D366] text-white hover:bg-[#1ebe57]"
           onClick={(event) => event.stopPropagation()}
         >
-          <WhatsAppIcon className="h-4 w-4 max-md:h-3.5 max-md:w-3.5" />
+          <WhatsAppIcon className="h-4 w-4 max-md:h-3 max-md:w-3" />
         </IconButton>
       )}
 

@@ -192,6 +192,7 @@ export function CustomerDetailPanel({
         title={displayReservation.ad_soyad}
         subtitle={`Rezervasyon Detayı • ${unitName} • ${displayReservation.durum}`}
         wide
+        mobileStickyClose
       >
         {mode === 'edit' ? (
           <ReservationFormPanel
@@ -206,7 +207,7 @@ export function CustomerDetailPanel({
             onCancel={() => setMode('view')}
           />
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 max-md:gap-2">
             {actionError && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                 {actionError}
@@ -219,7 +220,7 @@ export function CustomerDetailPanel({
               </div>
             )}
 
-            <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <section className="slide-over-section rounded-2xl border border-slate-200 bg-slate-50 p-5 max-md:p-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">
                 Rezervasyon Bilgileri
               </h3>
@@ -269,7 +270,7 @@ export function CustomerDetailPanel({
               onUpdated={handleGuestsUpdated}
             />
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <section className="slide-over-section rounded-2xl border border-slate-200 bg-white p-5 max-md:rounded-xl max-md:p-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">
                 📄 PDF Oluştur / Yazdır
               </h3>
@@ -286,7 +287,7 @@ export function CustomerDetailPanel({
               </button>
             </section>
 
-            <section className="rounded-2xl border border-[#25D366]/20 bg-[#25D366]/5 p-5">
+            <section className="slide-over-section rounded-2xl border border-[#25D366]/20 bg-[#25D366]/5 p-5 max-md:rounded-xl max-md:p-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-800">WhatsApp</h3>
               <div className="mt-4">
                 <WhatsAppGuestActions
@@ -298,15 +299,15 @@ export function CustomerDetailPanel({
             </section>
 
             {displayReservation.notlar && (
-              <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <section className="slide-over-section rounded-2xl border border-slate-200 bg-white p-5 max-md:rounded-xl max-md:p-3">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Notlar</h3>
                 <p className="mt-3 text-sm text-slate-700">{displayReservation.notlar}</p>
               </section>
             )}
 
             {mode === 'changeRoom' && (
-              <section className="rounded-2xl border border-blue-200 bg-blue-50/40 p-5">
-                <h3 className="text-sm font-bold text-blue-900">Oda Değiştir</h3>
+              <section className="slide-over-section rounded-2xl border border-blue-200 bg-blue-50/40 p-5 max-md:rounded-xl max-md:p-3">
+              <h3 className="text-sm font-bold text-blue-900">Oda Değiştir</h3>
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {availableRooms.map((room) => (
                     <button
@@ -335,8 +336,8 @@ export function CustomerDetailPanel({
             )}
 
             {mode === 'changeDates' && (
-              <section className="rounded-2xl border border-blue-200 bg-blue-50/40 p-5">
-                <h3 className="text-sm font-bold text-blue-900">Tarih Değiştir</h3>
+              <section className="slide-over-section rounded-2xl border border-blue-200 bg-blue-50/40 p-5 max-md:rounded-xl max-md:p-3">
+              <h3 className="text-sm font-bold text-blue-900">Tarih Değiştir</h3>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="block text-sm">
                     <span className="mb-1 block font-medium">Giriş Tarihi</span>
@@ -373,7 +374,7 @@ export function CustomerDetailPanel({
             {mode === 'view' && (
               <div className="flex flex-col gap-3 border-t border-slate-200 pt-5">
                 {unit && (
-                  <section className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                  <section className="slide-over-section rounded-2xl border border-blue-100 bg-blue-50/40 p-4 max-md:rounded-xl max-md:p-3">
                     <h3 className="mb-1 text-sm font-bold uppercase tracking-wider text-blue-900">
                       Rezervasyon İşlemleri
                     </h3>

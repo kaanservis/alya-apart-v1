@@ -58,7 +58,7 @@ function GuestActionButtons({
         type="button"
         onClick={onStartEdit}
         title="Düzenle"
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-base transition hover:border-blue-300 hover:bg-blue-50"
+        className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm transition hover:border-blue-300 hover:bg-blue-50 max-md:h-7 max-md:w-7 max-md:text-xs"
       >
         ✏️
       </button>
@@ -67,7 +67,7 @@ function GuestActionButtons({
           type="button"
           onClick={onDeleteClick}
           title="Sil"
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-base transition hover:border-red-300 hover:bg-red-50"
+          className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm transition hover:border-red-300 hover:bg-red-50 max-md:h-7 max-md:w-7 max-md:text-xs"
         >
           🗑️
         </button>
@@ -139,8 +139,8 @@ export function GuestEntryCard({
   }
 
   return (
-    <li className="w-full rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex min-h-[130px] flex-col p-3 sm:min-h-[140px] sm:flex-row sm:items-center sm:gap-3">
+    <li className="w-full rounded-xl border border-slate-200 bg-white shadow-sm max-md:rounded-xl">
+      <div className="flex min-h-[130px] flex-col p-3 sm:min-h-[140px] sm:flex-row sm:items-center sm:gap-3 max-md:min-h-0 max-md:p-3">
           <div className="hidden sm:block">
             <GuestActionButtons
               onStartEdit={onStartEdit}
@@ -160,12 +160,12 @@ export function GuestEntryCard({
               />
             </div>
 
-            <div className="pr-20 sm:pr-0">
-              <p className="text-[22px] font-bold uppercase leading-tight tracking-tight text-slate-900">
+            <div className="pr-16 sm:pr-0">
+              <p className="text-[22px] font-bold uppercase leading-tight tracking-tight text-slate-900 max-md:text-lg">
                 {index + 1}. {guest.full_name.toLocaleUpperCase('tr-TR')}
               </p>
               {guest.tc_no && (
-                <p className="mt-1 text-[18px] font-semibold tracking-wide text-slate-800">
+                <p className="mt-1 text-[18px] font-semibold tracking-wide text-slate-800 max-md:text-sm">
                   TC: {maskTcNumber(guest.tc_no, canViewCustomerTc)}
                 </p>
               )}

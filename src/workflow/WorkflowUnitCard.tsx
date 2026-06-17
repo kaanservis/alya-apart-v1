@@ -5,7 +5,6 @@ import type { AccommodationUnit, Reservation } from '../types/database'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import { buildPaymentSummary } from '../reservations/paymentCalculations'
 import { fetchReservationPaymentState } from '../reservations/tahsilatService'
-import { getGuestInitials } from '../guests/guestDisplay'
 import { completeCheckout, completeCleaning } from './workflowService'
 import {
   canShowOdaKabulButton,
@@ -142,65 +141,54 @@ export function WorkflowUnitCard({
           onSelect()
         }
       }}
-      className={`workflow-room-card ${roomStatusClass} group rounded-xl p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg max-md:p-2.5 sm:rounded-2xl sm:p-5 md:p-6 ${
+      className={`workflow-room-card ${roomStatusClass} group rounded-xl p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg max-md:p-1.5 sm:rounded-2xl sm:p-5 md:p-6 ${
         onSelect ? 'cursor-pointer' : ''
       } ${displayStatus === 'Bugün Giriş' ? 'ring-2 ring-red-400 ring-offset-1' : ''}`}
     >
-      <div className="flex items-start justify-between gap-2 max-md:gap-1.5 sm:gap-4">
+      <div className="flex items-start justify-between gap-2 max-md:gap-1 sm:gap-4">
         <div className="min-w-0 flex-1">
           <h3 className="workflow-room-text truncate text-lg font-bold tracking-tight max-md:text-base sm:text-2xl">
             {unit.name}
           </h3>
         </div>
-        <WorkflowStatusBadge
-          status={displayStatus}
-          prominent={displayStatus === 'Bugün Giriş'}
-        />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {guestReservation && (
+            <RoomCardIconBar
+              whatsAppUrl={
+                guestReservation.telefon ? getGuestWhatsAppUrl(guestReservation.telefon) : null
+              }
+              showOdaKabul={showOdaKabul}
+              onOdaKabul={() => checkInReservation && openCheckIn(checkInReservation)}
+              onKimlikler={() => checkInReservation && openCheckIn(checkInReservation)}
+              onPdf={
+                activeReservation && onOpenPdf ? () => onOpenPdf(activeReservation) : undefined
+              }
+              onPayment={
+                activeReservation && onOpenPayment
+                  ? () => onOpenPayment(activeReservation)
+                  : undefined
+              }
+            />
+          )}
+          <WorkflowStatusBadge
+            status={displayStatus}
+            prominent={displayStatus === 'Bugün Giriş'}
+          />
+        </div>
       </div>
 
       {activeReservation && (
-        <div className="workflow-room-panel mt-2.5 rounded-lg px-3 py-2 max-md:mt-2 max-md:px-2.5 max-md:py-1.5 sm:mt-4 sm:rounded-xl sm:px-4 sm:py-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="workflow-room-text-muted text-[10px] font-semibold uppercase tracking-wide max-md:text-[9px] sm:text-xs">
-                Misafir
-              </p>
-              <p className="mt-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-[10px] font-bold text-black max-md:h-6 max-md:w-6 sm:h-8 sm:w-8 sm:text-xs">
-                {getGuestInitials(activeReservation.ad_soyad)}
-              </p>
-              <p className="workflow-room-text mt-1 text-sm font-bold max-md:text-xs sm:text-base">
-                {activeReservation.ad_soyad}
-              </p>
-            </div>
-
-            {guestReservation && (
-              <RoomCardIconBar
-                whatsAppUrl={
-                  guestReservation.telefon
-                    ? getGuestWhatsAppUrl(guestReservation.telefon)
-                    : null
-                }
-                showOdaKabul={showOdaKabul}
-                onOdaKabul={() => checkInReservation && openCheckIn(checkInReservation)}
-                onKimlikler={() => checkInReservation && openCheckIn(checkInReservation)}
-                onPdf={onOpenPdf ? () => onOpenPdf(activeReservation) : undefined}
-                onPayment={onOpenPayment ? () => onOpenPayment(activeReservation) : undefined}
-              />
-            )}
-          </div>
-
-          <p className="workflow-room-text mt-1.5 text-xs font-semibold max-md:mt-1 max-md:text-[11px] sm:mt-2 sm:text-sm">
-            👥 {activeReservation.kisi_sayisi} Kişi
+        <div className="workflow-room-panel mt-2 rounded-lg px-3 py-2 max-md:mt-1.5 max-md:px-2 max-md:py-1.5 sm:mt-4 sm:rounded-xl sm:px-4 sm:py-3">
+          <p className="workflow-room-text truncate text-base font-bold max-md:text-sm sm:text-base">
+            {activeReservation.ad_soyad}
           </p>
-          <p className="workflow-room-text mt-1 text-xs font-bold max-md:text-[11px] sm:text-sm">
-            Kalan: {formatCurrency(remainingBalance)}
-          </p>
-          <p className="workflow-room-text-muted mt-1 text-[10px] max-md:text-[9px] sm:text-xs">
+          <p className="workflow-room-text mt-0.5 truncate text-[11px] font-semibold max-md:text-[10px] sm:text-sm">
+            👥 {activeReservation.kisi_sayisi} Kişi · Kalan: {formatCurrency(remainingBalance)} ·
             Çıkış: {formatReservationDate(activeReservation.cikis_tarihi)}
           </p>
 
           {showCheckInBadge && (
-            <div className="mt-2 max-md:mt-1.5">
+            <div className="mt-1.5 max-md:mt-1">
               <CheckInCompleteBadge />
             </div>
           )}
@@ -208,28 +196,16 @@ export function WorkflowUnitCard({
       )}
 
       {!activeReservation && nextReservation && (
-        <div className="workflow-room-panel mt-2.5 rounded-lg px-3 py-2 max-md:mt-2 max-md:px-2.5 max-md:py-1.5 sm:mt-4 sm:rounded-xl sm:px-4 sm:py-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="workflow-room-text text-[10px] font-bold uppercase tracking-wide max-md:text-[9px] sm:text-xs">
-                Sonraki Misafir
-              </p>
-              <p className="workflow-room-text mt-1 text-xs font-bold max-md:text-[11px] sm:text-sm">
-                {nextReservation.ad_soyad}
-              </p>
-              <p className="workflow-room-text-muted mt-1.5 text-[11px] max-md:mt-1 max-md:text-[10px] sm:mt-2 sm:text-sm">
-                Giriş: {formatReservationDate(nextReservation.giris_tarihi)}
-              </p>
-            </div>
-            <RoomCardIconBar
-              whatsAppUrl={
-                nextReservation.telefon ? getGuestWhatsAppUrl(nextReservation.telefon) : null
-              }
-              showOdaKabul={showOdaKabul}
-              onOdaKabul={() => checkInReservation && openCheckIn(checkInReservation)}
-              onKimlikler={() => checkInReservation && openCheckIn(checkInReservation)}
-            />
-          </div>
+        <div className="workflow-room-panel mt-2 rounded-lg px-3 py-2 max-md:mt-1.5 max-md:px-2 max-md:py-1.5 sm:mt-4 sm:rounded-xl sm:px-4 sm:py-3">
+          <p className="workflow-room-text text-[10px] font-bold uppercase tracking-wide max-md:text-[9px] sm:text-xs">
+            Sonraki Misafir
+          </p>
+          <p className="workflow-room-text mt-0.5 truncate text-sm font-bold max-md:text-base sm:text-sm">
+            {nextReservation.ad_soyad}
+          </p>
+          <p className="workflow-room-text-muted mt-1 truncate text-[11px] max-md:text-xs sm:text-sm">
+            Giriş: {formatReservationDate(nextReservation.giris_tarihi)}
+          </p>
         </div>
       )}
 

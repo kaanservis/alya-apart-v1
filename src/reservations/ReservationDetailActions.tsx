@@ -4,6 +4,7 @@ import {
   adminActionBtnDanger,
   adminActionBtnPrimary,
   adminActionBtnSecondary,
+  adminDetailActionsStack,
 } from '../components/admin/adminMobileStyles'
 import {
   cancelReservation,
@@ -73,7 +74,7 @@ export function ReservationDetailActions({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className={adminDetailActionsStack}>
         {reservation.durum === 'Aktif' && !isOdaKabulYapildi(reservation) && onOpenCheckIn && (
           <button type="button" onClick={onOpenCheckIn} className={adminActionBtnPrimary}>
             ODA KABUL
