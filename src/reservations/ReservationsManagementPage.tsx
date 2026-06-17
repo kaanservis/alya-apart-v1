@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
+import { CustomerDetailPanel } from '../customers/CustomerDetailPanel'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import {
   adminActionBtnPrimary,
@@ -16,14 +17,17 @@ import {
   adminSectionPadding,
   adminSectionTitle,
 } from '../components/admin/adminMobileStyles'
+import { AllReservationsSection } from './AllReservationsSection'
 import { formatReservationDate } from './reservationDisplay'
-import { getTotalCollected } from './depositCalculations'
+import { getRemainingBalance, getTotalCollected } from './depositCalculations'
+import { useBatchPaymentSummaries } from './useBatchPaymentSummaries'
 import { ReservationFormPanel } from './ReservationFormPanel'
 
 interface ReservationsManagementPageProps {
   units: AccommodationUnit[]
   reservations: Reservation[]
   onUpdated: () => void
+  refreshToken?: number
   loading?: boolean
   error?: string | null
 }
@@ -32,14 +36,17 @@ export function ReservationsManagementPage({
   units,
   reservations,
   onUpdated,
+  refreshToken = 0,
   loading = false,
   error = null,
 }: ReservationsManagementPageProps) {
   const formatCurrency = useFormatAdminCurrency()
+  const { paymentsByReservation } = useBatchPaymentSummaries(reservations, refreshToken)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formKey, setFormKey] = useState(0)
-  const [editReservation, setEditReservation] = useState<Reservation | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [activeSearchQuery, setActiveSearchQuery] = useState('')
+  const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null)
+  const [pendingDetailReservation, setPendingDetailReservation] = useState<Reservation | null>(null)
 
   const unitNameById = useMemo(
     () => new Map(units.map((unit) => [unit.id, unit.name])),
@@ -47,7 +54,7 @@ export function ReservationsManagementPage({
   )
 
   const activeReservations = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
+    const query = activeSearchQuery.trim().toLowerCase()
 
     return reservations
       .filter((reservation) => reservation.durum === 'Aktif')
@@ -64,18 +71,49 @@ export function ReservationsManagementPage({
         )
       })
       .sort((a, b) => b.giris_tarihi.localeCompare(a.giris_tarihi, 'tr'))
-  }, [reservations, searchQuery, unitNameById])
+  }, [reservations, activeSearchQuery, unitNameById])
 
-  function handleSaved() {
+  const detailReservation = useMemo(() => {
+    if (!selectedReservationId) {
+      return null
+    }
+
+    const fromList = reservations.find((reservation) => reservation.id === selectedReservationId)
+    if (fromList) {
+      return fromList
+    }
+
+    if (pendingDetailReservation?.id === selectedReservationId) {
+      return pendingDetailReservation
+    }
+
+    return null
+  }, [selectedReservationId, reservations, pendingDetailReservation])
+
+  useEffect(() => {
+    if (
+      pendingDetailReservation &&
+      reservations.some((reservation) => reservation.id === pendingDetailReservation.id)
+    ) {
+      setPendingDetailReservation(null)
+    }
+  }, [reservations, pendingDetailReservation])
+
+  function handleSaved(savedReservation?: Reservation) {
     onUpdated()
     setShowCreateForm(false)
-    setEditReservation(null)
     setFormKey((current) => current + 1)
+
+    if (savedReservation) {
+      setPendingDetailReservation(savedReservation)
+      setSelectedReservationId(savedReservation.id)
+    }
   }
 
-  function handleEdit(reservation: Reservation) {
-    setEditReservation(reservation)
+  function openDetail(reservation: Reservation) {
     setShowCreateForm(false)
+    setPendingDetailReservation(null)
+    setSelectedReservationId(reservation.id)
   }
 
   return (
@@ -92,7 +130,6 @@ export function ReservationsManagementPage({
         <button
           type="button"
           onClick={() => {
-            setEditReservation(null)
             setShowCreateForm((current) => !current)
           }}
           className={`${adminPrimaryCta} ${
@@ -125,18 +162,6 @@ export function ReservationsManagementPage({
         />
       )}
 
-      {editReservation && (
-        <ReservationFormPanel
-          key={`edit-${formKey}-${editReservation.id}`}
-          units={units}
-          reservations={reservations}
-          mode="edit"
-          editReservation={editReservation}
-          onSaved={handleSaved}
-          onCancel={() => setEditReservation(null)}
-        />
-      )}
-
       <section className={adminSectionCard}>
         <div className="flex flex-col gap-3 border-b border-slate-200 px-3 py-3 max-md:gap-2 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
           <div>
@@ -149,8 +174,8 @@ export function ReservationsManagementPage({
             <span className="sr-only">Ara</span>
             <input
               type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              value={activeSearchQuery}
+              onChange={(event) => setActiveSearchQuery(event.target.value)}
               placeholder="Misafir, telefon veya oda ara..."
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200 max-md:py-1.5 max-md:text-xs sm:rounded-xl sm:px-4 sm:py-2.5"
             />
@@ -172,7 +197,7 @@ export function ReservationsManagementPage({
 
         {!loading && !error && activeReservations.length === 0 && (
           <p className="px-5 py-10 text-center text-sm text-slate-500">
-            {searchQuery.trim()
+            {activeSearchQuery.trim()
               ? 'Aramanızla eşleşen aktif rezervasyon bulunamadı.'
               : 'Aktif rezervasyon bulunmuyor.'}
           </p>
@@ -181,7 +206,10 @@ export function ReservationsManagementPage({
         {!loading && !error && activeReservations.length > 0 && (
           <>
             <div className={adminMobileCardList}>
-              {activeReservations.map((reservation) => (
+              {activeReservations.map((reservation) => {
+                const payments = paymentsByReservation.get(reservation.id) ?? []
+
+                return (
                 <div key={reservation.id} className={adminMobileCard}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -190,11 +218,10 @@ export function ReservationsManagementPage({
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleEdit(reservation)}
+                      onClick={() => openDetail(reservation)}
                       className={`${adminActionBtnPrimary} shrink-0`}
                     >
-                      <span aria-hidden>✏️</span>
-                      Düzenle
+                      Detay
                     </button>
                   </div>
                   <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2">
@@ -222,15 +249,22 @@ export function ReservationsManagementPage({
                         {formatReservationDate(reservation.cikis_tarihi)}
                       </dd>
                     </div>
-                    <div className="col-span-2">
-                      <dt className={adminMobileCardLabel}>Alınan</dt>
+                    <div>
+                      <dt className={adminMobileCardLabel}>Ödenen</dt>
                       <dd className="text-xs font-semibold text-emerald-700">
-                        {formatCurrency(getTotalCollected(reservation))}
+                        {formatCurrency(getTotalCollected(reservation, payments))}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className={adminMobileCardLabel}>Kalan</dt>
+                      <dd className="text-xs font-semibold text-rose-700">
+                        {formatCurrency(getRemainingBalance(reservation, payments))}
                       </dd>
                     </div>
                   </dl>
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             <div className="hidden overflow-x-auto md:block">
@@ -243,12 +277,16 @@ export function ReservationsManagementPage({
                     <th className="px-4 py-3 font-semibold">Giriş</th>
                     <th className="px-4 py-3 font-semibold">Çıkış</th>
                     <th className="px-4 py-3 font-semibold">Toplam</th>
-                    <th className="px-4 py-3 font-semibold">Alınan</th>
+                    <th className="px-4 py-3 font-semibold">Ödenen</th>
+                    <th className="px-4 py-3 font-semibold">Kalan</th>
                     <th className="px-4 py-3 font-semibold">İşlem</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {activeReservations.map((reservation) => (
+                  {activeReservations.map((reservation) => {
+                    const payments = paymentsByReservation.get(reservation.id) ?? []
+
+                    return (
                     <tr key={reservation.id} className="border-t border-slate-100">
                       <td className="px-4 py-3 font-medium text-slate-900">{reservation.ad_soyad}</td>
                       <td className="px-4 py-3 text-slate-700">{reservation.telefon}</td>
@@ -265,25 +303,46 @@ export function ReservationsManagementPage({
                         {formatCurrency(reservation.toplam_ucret)}
                       </td>
                       <td className="px-4 py-3 text-emerald-700">
-                        {formatCurrency(getTotalCollected(reservation))}
+                        {formatCurrency(getTotalCollected(reservation, payments))}
+                      </td>
+                      <td className="px-4 py-3 text-rose-700">
+                        {formatCurrency(getRemainingBalance(reservation, payments))}
                       </td>
                       <td className="px-4 py-3">
                         <button
                           type="button"
-                          onClick={() => handleEdit(reservation)}
+                          onClick={() => openDetail(reservation)}
                           className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800"
                         >
-                          Düzenle
+                          Detay
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           </>
         )}
       </section>
+
+      <AllReservationsSection
+        units={units}
+        refreshToken={refreshToken}
+        onSelectReservation={openDetail}
+      />
+
+      {detailReservation && (
+        <CustomerDetailPanel
+          reservation={detailReservation}
+          unitName={unitNameById.get(detailReservation.konaklama_birimi_id) ?? '—'}
+          units={units}
+          reservations={reservations}
+          onClose={() => setSelectedReservationId(null)}
+          onUpdated={onUpdated}
+        />
+      )}
     </div>
   )
 }

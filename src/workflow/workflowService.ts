@@ -100,28 +100,15 @@ async function syncAllUnitStatuses() {
   )
 }
 
-export async function completeOdaKabul(
-  reservationId: string,
-  alinanTutar?: number,
-): Promise<void> {
+export async function completeOdaKabul(reservationId: string): Promise<void> {
   const client = assertSupabaseClient()
-
-  const updatePayload: {
-    oda_kabul_yapildi: boolean
-    oda_kabul_tarihi: string
-    alinan_tutar?: number
-  } = {
-    oda_kabul_yapildi: true,
-    oda_kabul_tarihi: new Date().toISOString(),
-  }
-
-  if (alinanTutar !== undefined) {
-    updatePayload.alinan_tutar = alinanTutar
-  }
 
   const { error } = await client
     .from('reservations')
-    .update(updatePayload as never)
+    .update({
+      oda_kabul_yapildi: true,
+      oda_kabul_tarihi: new Date().toISOString(),
+    } as never)
     .eq('id', reservationId)
 
   if (error) {

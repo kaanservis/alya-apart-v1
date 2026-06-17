@@ -6,7 +6,7 @@ import {
   getPdfMargin,
   getPdfTableStyles,
 } from './pdfDocument'
-import { formatPdfCurrency } from './pdfTheme'
+import { formatMoneyExport as formatMoneyExportByPermission } from '../auth/formatMoney'
 
 export interface ExportColumn {
   header: string
@@ -73,6 +73,6 @@ export async function exportRowsToPdf(
   doc.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`)
 }
 
-export function formatMoneyExport(value: number) {
-  return formatPdfCurrency(value)
+export function formatMoneyExport(value: number, canViewPrices = true) {
+  return formatMoneyExportByPermission(value, canViewPrices)
 }

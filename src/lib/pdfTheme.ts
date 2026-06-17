@@ -1,3 +1,4 @@
+import { formatPdfMoneyByPermission } from '../auth/formatMoney'
 import { formatTurkeyDateKey, getTurkeyDateKey } from './turkeyDate'
 
 export const PDF_BRAND = {
@@ -25,16 +26,8 @@ export const PDF_THEME = {
   footerY: 778,
 } as const
 
-const currencyFormatter = new Intl.NumberFormat('tr-TR', {
-  style: 'currency',
-  currency: 'TRY',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
-
-export function formatPdfCurrency(value: number) {
-  const formatted = currencyFormatter.format(Number(value))
-  return formatted.replace(/\s?TL\b/u, '₺').replace(/\u00A0/g, ' ')
+export function formatPdfCurrency(value: number, canViewPrices = true) {
+  return formatPdfMoneyByPermission(value, canViewPrices)
 }
 
 export function formatPdfDate(dateKey: string) {

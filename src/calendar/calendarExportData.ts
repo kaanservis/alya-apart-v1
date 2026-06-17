@@ -1,5 +1,5 @@
 import type { AccommodationUnit, Reservation } from '../types/database'
-import { toDateKey } from '../calendar/dateUtils'
+import { addDays, parseDateKey, toDateKey } from '../calendar/dateUtils'
 import { getUnitDisplayOrder } from '../lib/unitOrder'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import {
@@ -36,15 +36,25 @@ export function buildCalendarExportEntries(
       (reservation) =>
         reservation.durum === 'Aktif' &&
         reservation.giris_tarihi <= rangeEnd &&
-        reservation.cikis_tarihi >= rangeStart,
+        reservation.cikis_tarihi > rangeStart,
     )
-    .map((reservation) => ({
-      unitName: unitMap.get(reservation.konaklama_birimi_id) ?? '—',
-      reservation,
-      visibleFrom:
-        reservation.giris_tarihi < rangeStart ? rangeStart : reservation.giris_tarihi,
-      visibleTo: reservation.cikis_tarihi > rangeEnd ? rangeEnd : reservation.cikis_tarihi,
-    }))
+    .map((reservation) => {
+      const lastOccupiedDay = toDateKey(addDays(parseDateKey(reservation.cikis_tarihi), -1))
+      const visibleToKey =
+        lastOccupiedDay < reservation.giris_tarihi
+          ? reservation.giris_tarihi
+          : lastOccupiedDay > rangeEnd
+            ? rangeEnd
+            : lastOccupiedDay
+
+      return {
+        unitName: unitMap.get(reservation.konaklama_birimi_id) ?? '—',
+        reservation,
+        visibleFrom:
+          reservation.giris_tarihi < rangeStart ? rangeStart : reservation.giris_tarihi,
+        visibleTo: visibleToKey,
+      }
+    })
     .sort(
       (a, b) =>
         (unitOrderMap.get(a.reservation.konaklama_birimi_id) ?? 9999) -
@@ -62,27 +72,39 @@ const CALENDAR_EXPORT_COLUMNS: ExportColumn[] = [
   { header: 'Durum', key: 'durum' },
 ]
 
-function toCalendarRows(entries: CalendarExportEntry[]): ExportRow[] {
+function toCalendarRows(entries: CalendarExportEntry[], canViewPrices = true): ExportRow[] {
   return entries.map(({ unitName, reservation, visibleFrom, visibleTo }) => ({
     oda: unitName,
     misafir: reservation.ad_soyad,
     telefon: reservation.telefon,
     giris: formatReservationDate(visibleFrom),
     cikis: formatReservationDate(visibleTo),
-    toplam: formatMoneyExport(reservation.toplam_ucret),
+    toplam: formatMoneyExport(reservation.toplam_ucret, canViewPrices),
     durum: reservation.durum,
   }))
 }
 
-export function exportCalendarExcel(entries: CalendarExportEntry[], periodLabel: string) {
-  exportRowsToExcel(`takvim-${periodLabel.replace(/\s+/g, '-')}`, CALENDAR_EXPORT_COLUMNS, toCalendarRows(entries))
+export function exportCalendarExcel(
+  entries: CalendarExportEntry[],
+  periodLabel: string,
+  canViewPrices = true,
+) {
+  exportRowsToExcel(
+    `takvim-${periodLabel.replace(/\s+/g, '-')}`,
+    CALENDAR_EXPORT_COLUMNS,
+    toCalendarRows(entries, canViewPrices),
+  )
 }
 
-export async function exportCalendarPdf(entries: CalendarExportEntry[], periodLabel: string) {
+export async function exportCalendarPdf(
+  entries: CalendarExportEntry[],
+  periodLabel: string,
+  canViewPrices = true,
+) {
   await exportRowsToPdf(
     `takvim-${periodLabel.replace(/\s+/g, '-')}`,
     `Rezervasyon Takvimi — ${periodLabel}`,
     CALENDAR_EXPORT_COLUMNS,
-    toCalendarRows(entries),
+    toCalendarRows(entries, canViewPrices),
   )
 }

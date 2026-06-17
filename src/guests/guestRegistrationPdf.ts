@@ -98,17 +98,18 @@ function drawPaymentRow(
   doc: Awaited<ReturnType<typeof createThemedPdf>>,
   startY: number,
   reservation: Reservation,
+  canViewPrices: boolean,
 ) {
   autoTable(doc, {
     startY,
     margin: getPdfMargin(),
     tableWidth: pageWidth(doc) - PDF_THEME.margin * 2,
-    head: [['Toplam Ücret', 'Alınan Ücret', 'Kalan Bakiye']],
+    head: [['Toplam Ücret', 'Tahsil Edilen', 'Kalan Bakiye']],
     body: [
       [
-        formatPdfCurrency(reservation.toplam_ucret),
-        formatPdfCurrency(getTotalCollected(reservation)),
-        formatPdfCurrency(getRemainingBalance(reservation)),
+        formatPdfCurrency(reservation.toplam_ucret, canViewPrices),
+        formatPdfCurrency(getTotalCollected(reservation), canViewPrices),
+        formatPdfCurrency(getRemainingBalance(reservation), canViewPrices),
       ],
     ],
     ...getPdfTableStyles({
@@ -125,7 +126,11 @@ function drawPaymentRow(
   })
 }
 
-export async function exportGuestRegistrationPdf(roomName: string, reservation: Reservation) {
+export async function exportGuestRegistrationPdf(
+  roomName: string,
+  reservation: Reservation,
+  canViewPrices = true,
+) {
   const allGuests = await fetchGuestEntriesForReservation(reservation.id)
   const totalPersonCount = computeTotalGuestCount(allGuests.length)
   const exceedsOccupancy = totalPersonCount > MAX_ROOM_OCCUPANCY || allGuests.length > MAX_ROOM_OCCUPANCY
@@ -149,7 +154,7 @@ export async function exportGuestRegistrationPdf(roomName: string, reservation: 
     y += 24
   }
 
-  drawPaymentRow(doc, y, reservation)
+  drawPaymentRow(doc, y, reservation, canViewPrices)
   drawStandardFooter(doc, { signatureLine: 'Misafir İmzası: ________________________________' })
 
   doc.save(`misafir-listesi-${sanitizePdfFileName(roomName)}.pdf`)

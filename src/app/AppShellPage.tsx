@@ -113,7 +113,7 @@ export function AppShellPage() {
       'Tüm misafirleri ve rezervasyonları arayın, filtreleyin, düzenleyin ve dışa aktarın.',
     history:
       'Tamamlanmış rezervasyonları misafir adı, telefon, oda ve tarihe göre arayın.',
-    cash: 'Rezervasyon ödemelerini ve aktif rezervasyon tahsilat durumunu görüntüleyin.',
+    cash: 'Rezervasyon ödemelerini ve aktif rezervasyon ödeme durumunu görüntüleyin.',
     expenses: 'Masraf kayıtlarını ekleyin, düzenleyin ve dönemsel masraf istatistiklerini görün.',
     reports:
       'Gelir, masraf, oda performansı ve günlük doluluk raporlarını dönemsel filtrelerle inceleyin.',
@@ -211,6 +211,7 @@ export function AppShellPage() {
                 units={units}
                 reservations={reservations}
                 onUpdated={handleUpdated}
+                refreshToken={refreshToken}
                 loading={loading}
                 error={error}
               />
@@ -220,7 +221,6 @@ export function AppShellPage() {
           <CustomersPage
             refreshToken={refreshToken}
             onUpdated={handleUpdated}
-            onOdaKabulComplete={handleOdaKabulComplete}
           />
         )}
 
@@ -229,7 +229,7 @@ export function AppShellPage() {
             )}
 
             {showSharedContent && activeTab === 'cash' && (
-              <CashPage units={units} reservations={reservations} />
+              <CashPage units={units} reservations={reservations} refreshToken={refreshToken} />
             )}
 
             {activeTab === 'expenses' && (

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCanViewPrices } from '../../auth/useFormatAdminCurrency'
 import {
   buildWhatsAppMessage,
   getGuestWhatsAppUrl,
@@ -24,7 +25,9 @@ export function WhatsAppGuestActions({
   className = '',
 }: WhatsAppGuestActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const canViewPrices = useCanViewPrices()
   const normalizedPhone = phone.replace(/\D/g, '')
+  const messageContext = { adSoyad, kalanBakiye, canViewPrices }
 
   if (!normalizedPhone) {
     if (iconOnly) {
@@ -77,7 +80,7 @@ export function WhatsAppGuestActions({
                   key={item.template}
                   href={getGuestWhatsAppUrl(
                     phone,
-                    buildWhatsAppMessage(item.template, { adSoyad, kalanBakiye }),
+                    buildWhatsAppMessage(item.template, messageContext),
                   )}
                   target="_blank"
                   rel="noreferrer"
@@ -121,7 +124,7 @@ export function WhatsAppGuestActions({
                 key={item.template}
                 href={getGuestWhatsAppUrl(
                   phone,
-                  buildWhatsAppMessage(item.template, { adSoyad, kalanBakiye }),
+                  buildWhatsAppMessage(item.template, messageContext),
                 )}
                 target="_blank"
                 rel="noreferrer"

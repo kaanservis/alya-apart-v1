@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useCanViewPrices } from '../auth/useFormatAdminCurrency'
+import { CustomerDetailPanel } from '../customers/CustomerDetailPanel'
 import {
   buildCalendarExportEntries,
   exportCalendarExcel,
@@ -46,6 +48,7 @@ export function ReservationCalendarPanel({
   loading = false,
   error = null,
 }: ReservationCalendarPanelProps) {
+  const canViewPrices = useCanViewPrices()
   const [viewState, setViewState] = useState<CalendarViewState>(() => {
     const today = getTurkeyToday()
 
@@ -57,6 +60,8 @@ export function ReservationCalendarPanel({
   })
   const [formPanel, setFormPanel] = useState<FormPanelState | null>(null)
   const [formKey, setFormKey] = useState(0)
+  const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null)
+  const [pendingDetailReservation, setPendingDetailReservation] = useState<Reservation | null>(null)
 
   const activeReservations = useMemo(
     () => reservations.filter((reservation) => reservation.durum === 'Aktif'),
@@ -115,10 +120,52 @@ export function ReservationCalendarPanel({
     }))
   }
 
-  function handleSaved() {
+  const unitNameById = useMemo(
+    () => new Map(units.map((unit) => [unit.id, unit.name])),
+    [units],
+  )
+
+  const detailReservation = useMemo(() => {
+    if (!selectedReservationId) {
+      return null
+    }
+
+    const fromList = reservations.find((reservation) => reservation.id === selectedReservationId)
+    if (fromList) {
+      return fromList
+    }
+
+    if (pendingDetailReservation?.id === selectedReservationId) {
+      return pendingDetailReservation
+    }
+
+    return null
+  }, [selectedReservationId, reservations, pendingDetailReservation])
+
+  useEffect(() => {
+    if (
+      pendingDetailReservation &&
+      reservations.some((reservation) => reservation.id === pendingDetailReservation.id)
+    ) {
+      setPendingDetailReservation(null)
+    }
+  }, [reservations, pendingDetailReservation])
+
+  function handleSaved(savedReservation?: Reservation) {
     onUpdated()
     setFormPanel(null)
     setFormKey((current) => current + 1)
+
+    if (savedReservation) {
+      setPendingDetailReservation(savedReservation)
+      setSelectedReservationId(savedReservation.id)
+    }
+  }
+
+  function openDetail(reservation: Reservation) {
+    setFormPanel(null)
+    setPendingDetailReservation(null)
+    setSelectedReservationId(reservation.id)
   }
 
   return (
@@ -128,7 +175,7 @@ export function ReservationCalendarPanel({
           <button
             type="button"
             disabled={loading || calendarExportEntries.length === 0}
-            onClick={() => void exportCalendarPdf(calendarExportEntries, periodLabel)}
+            onClick={() => void exportCalendarPdf(calendarExportEntries, periodLabel, canViewPrices)}
             className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             PDF Export
@@ -136,7 +183,7 @@ export function ReservationCalendarPanel({
           <button
             type="button"
             disabled={loading || calendarExportEntries.length === 0}
-            onClick={() => exportCalendarExcel(calendarExportEntries, periodLabel)}
+            onClick={() => exportCalendarExcel(calendarExportEntries, periodLabel, canViewPrices)}
             className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             Excel Export
@@ -201,7 +248,7 @@ export function ReservationCalendarPanel({
             setFormPanel({ mode: 'create', ...openCreateFromCalendarSelection(unit, date) })
           }}
           onReservationClick={(reservation, _unit) => {
-            setFormPanel({ mode: 'edit', editReservation: reservation })
+            openDetail(reservation)
           }}
         />
       )}
@@ -210,6 +257,17 @@ export function ReservationCalendarPanel({
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
           Oda bulunamadı. Önce oda kayıtlarını Supabase&apos;e ekleyin.
         </div>
+      )}
+
+      {detailReservation && (
+        <CustomerDetailPanel
+          reservation={detailReservation}
+          unitName={unitNameById.get(detailReservation.konaklama_birimi_id) ?? '—'}
+          units={units}
+          reservations={reservations}
+          onClose={() => setSelectedReservationId(null)}
+          onUpdated={onUpdated}
+        />
       )}
     </div>
   )

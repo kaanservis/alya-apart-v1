@@ -1,3 +1,4 @@
+import { getTurkeyDateKey } from '../lib/turkeyDate'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import type { Expense } from './types'
 import { parseAmount } from './expenseCalculations'
@@ -10,21 +11,28 @@ function assertSupabaseClient() {
   return supabase
 }
 
-function buildExpensePayload(values: { tarih: string; aciklama: string; tutar: string }) {
+function buildExpensePayload(values: { aciklama: string; tutar: string }) {
+  const tutar = parseAmount(values.tutar)
+
+  if (Number.isNaN(tutar) || tutar <= 0) {
+    throw new Error('Geçerli bir tutar giriniz.')
+  }
+
   return {
-    tarih: values.tarih,
     aciklama: values.aciklama.trim(),
-    tutar: parseAmount(values.tutar),
+    tutar,
   }
 }
 
 export async function createExpense(values: {
-  tarih: string
   aciklama: string
   tutar: string
 }): Promise<Expense> {
   const client = assertSupabaseClient()
-  const payload = buildExpensePayload(values)
+  const payload = {
+    ...buildExpensePayload(values),
+    tarih: getTurkeyDateKey(),
+  }
 
   const { data, error } = await client
     .from('expenses')
@@ -41,7 +49,7 @@ export async function createExpense(values: {
 
 export async function updateExpense(
   expenseId: string,
-  values: { tarih: string; aciklama: string; tutar: string },
+  values: { aciklama: string; tutar: string },
 ): Promise<Expense> {
   const client = assertSupabaseClient()
   const payload = buildExpensePayload(values)

@@ -38,6 +38,7 @@ function buildRoomReservationsTableBody(
   roomReservations: Reservation[],
   guestMap: Map<string, GuestEntryWithPhotos[]>,
   range: ReportDateRange,
+  canViewPrices: boolean,
 ) {
   const body: Array<Array<string | GuestSubRow>> = []
 
@@ -52,9 +53,9 @@ function buildRoomReservationsTableBody(
       formatPdfDate(reservation.cikis_tarihi),
       String(reservation.kisi_sayisi),
       String(nights),
-      formatPdfCurrency(reservation.toplam_ucret),
-      formatPdfCurrency(getTotalCollected(reservation)),
-      formatPdfCurrency(getRemainingBalance(reservation)),
+      formatPdfCurrency(reservation.toplam_ucret, canViewPrices),
+      formatPdfCurrency(getTotalCollected(reservation), canViewPrices),
+      formatPdfCurrency(getRemainingBalance(reservation), canViewPrices),
     ])
 
     body.push([
@@ -80,6 +81,7 @@ export async function exportRoomReportPdf(
   room: RoomReportRow,
   range: ReportDateRange,
   reservations: Reservation[],
+  canViewPrices = true,
 ) {
   const roomReservations = getRoomReservationsInRange(reservations, room.unitId, range)
   const guestMap = await fetchGuestEntriesForReservations(
@@ -118,9 +120,9 @@ export async function exportRoomReportPdf(
         String(room.reservationCount),
         String(room.totalGuests),
         String(room.totalNights),
-        formatPdfCurrency(room.totalRevenue),
-        formatPdfCurrency(room.collectedAmount),
-        formatPdfCurrency(room.remainingBalance),
+        formatPdfCurrency(room.totalRevenue, canViewPrices),
+        formatPdfCurrency(room.collectedAmount, canViewPrices),
+        formatPdfCurrency(room.remainingBalance, canViewPrices),
       ],
     ],
     ...getPdfTableStyles({
@@ -134,9 +136,9 @@ export async function exportRoomReportPdf(
     doc,
     y,
     [
-      { label: 'Toplam Ücret', value: formatPdfCurrency(room.totalRevenue) },
-      { label: 'Ödenen', value: formatPdfCurrency(room.collectedAmount) },
-      { label: 'Kalan', value: formatPdfCurrency(room.remainingBalance) },
+      { label: 'Toplam Ücret', value: formatPdfCurrency(room.totalRevenue, canViewPrices) },
+      { label: 'Ödenen', value: formatPdfCurrency(room.collectedAmount, canViewPrices) },
+      { label: 'Kalan', value: formatPdfCurrency(room.remainingBalance, canViewPrices) },
     ],
     true,
   ) + 8
@@ -166,7 +168,7 @@ export async function exportRoomReportPdf(
           'Kalan',
         ],
       ],
-      body: buildRoomReservationsTableBody(roomReservations, guestMap, range),
+      body: buildRoomReservationsTableBody(roomReservations, guestMap, range, canViewPrices),
       ...getPdfTableStyles({
         styles: { fontSize: 7, cellPadding: 2, lineWidth: 0.3 },
         headStyles: { fontSize: 6.5, cellPadding: 2 },

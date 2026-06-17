@@ -129,7 +129,6 @@ export function reservationToFormValues(reservation: {
     konaklama_birimi_id: reservation.konaklama_birimi_id,
     gunluk_ucret: String(roundMoney(daily)),
     toplam_ucret: String(reservation.toplam_ucret),
-    alinan_tutar: String(reservation.alinan_tutar ?? 0),
     notlar: reservation.notlar ?? '',
   }
 }

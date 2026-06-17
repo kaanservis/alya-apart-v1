@@ -1,6 +1,6 @@
 import autoTable from 'jspdf-autotable'
-import type { Reservation } from '../types/database'
-import { MASKED_MONEY_LABEL } from '../auth/formatMoney'
+import type { PaymentRecord, Reservation } from '../types/database'
+import { formatPdfMoneyByPermission } from '../auth/formatMoney'
 import {
   createThemedPdf,
   getPdfMargin,
@@ -8,9 +8,10 @@ import {
   tableFinalY,
 } from '../lib/pdfDocument'
 import { PDF_FONT_FAMILY } from '../lib/pdfFonts'
-import { formatPdfCurrency, formatPdfDate, formatPdfToday } from '../lib/pdfTheme'
-import { getRemainingBalance, getTotalCollected } from '../reservations/depositCalculations'
+import { formatPdfDate, formatPdfToday } from '../lib/pdfTheme'
 import { calculateNights } from '../reservations/pricing'
+import { formatReservationDate } from '../reservations/reservationDisplay'
+import { fetchReservationPaymentState } from '../reservations/tahsilatService'
 import type { GuestEntryWithPhotos } from '../guests/guestTypes'
 
 interface ExportCustomerReservationPdfOptions {
@@ -35,11 +36,7 @@ export function buildCustomerReservationPdfFileName(roomName: string, guestName:
 }
 
 function formatPdfMoney(value: number, canViewPrices: boolean) {
-  if (!canViewPrices) {
-    return MASKED_MONEY_LABEL
-  }
-
-  return formatPdfCurrency(value)
+  return formatPdfMoneyByPermission(value, canViewPrices)
 }
 
 function formatPdfTc(value: string | null | undefined, canViewTc: boolean) {
@@ -73,15 +70,32 @@ function drawDivider(doc: Awaited<ReturnType<typeof createThemedPdf>>, y: number
   doc.line(margin, y, pageWidth(doc) - margin, y)
 }
 
+function resolveDailyRate(reservation: Reservation, nights: number) {
+  if (reservation.gunluk_ucret != null && reservation.gunluk_ucret > 0) {
+    return Number(reservation.gunluk_ucret)
+  }
+
+  if (nights <= 0) {
+    return 0
+  }
+
+  return Number(reservation.toplam_ucret) / nights
+}
+
 export async function exportCustomerReservationPdf(
   reservation: Reservation,
   unitName: string,
   guests: GuestEntryWithPhotos[],
   options: ExportCustomerReservationPdfOptions,
 ) {
+  const paymentState = await fetchReservationPaymentState(reservation.id)
+  const summary = paymentState.summary
+  const payments = paymentState.payments
+  const nights = calculateNights(reservation.giris_tarihi, reservation.cikis_tarihi)
+  const dailyRate = resolveDailyRate(reservation, nights)
+
   const doc = await createThemedPdf('portrait')
   const margin = getPdfMargin().left
-  const nights = calculateNights(reservation.giris_tarihi, reservation.cikis_tarihi)
 
   let y = margin
 
@@ -119,8 +133,12 @@ export async function exportCustomerReservationPdf(
       ['Oda', unitName],
       ['Giriş Tarihi', formatPdfDate(reservation.giris_tarihi)],
       ['Çıkış Tarihi', formatPdfDate(reservation.cikis_tarihi)],
-      ['Toplam Gece Sayısı', String(nights)],
+      ['Gün Sayısı', String(nights)],
       ['Kişi Sayısı', String(reservation.kisi_sayisi)],
+      ['Günlük Ücret', formatPdfMoney(dailyRate, options.canViewPrices)],
+      ['Toplam Ücret', formatPdfMoney(Number(reservation.toplam_ucret), options.canViewPrices)],
+      ['Tahsil Edilen', formatPdfMoney(summary.totalCollected, options.canViewPrices)],
+      ['Kalan Bakiye', formatPdfMoney(summary.remainingBalance, options.canViewPrices)],
     ],
   })
 
@@ -128,29 +146,39 @@ export async function exportCustomerReservationPdf(
   drawDivider(doc, y)
   y += 16
 
-  drawSectionTitle(doc, y, 'ÖDEME')
+  drawSectionTitle(doc, y, 'ÖDEME GEÇMİŞİ')
   y += 10
 
   autoTable(doc, {
     startY: y,
     margin: getPdfMargin(),
     tableWidth: pageWidth(doc) - margin * 2,
-    theme: 'plain',
+    head: [['Tarih', 'Tutar', 'Açıklama', 'İşlemi Yapan']],
+    body:
+      payments.length > 0
+        ? payments.map((record: PaymentRecord) => [
+            formatReservationDate(record.payment_date),
+            formatPdfMoney(Number(record.amount), options.canViewPrices),
+            record.note?.trim() || '—',
+            record.recorded_by?.trim() || '—',
+          ])
+        : [['—', '—', 'Henüz ödeme kaydı yok', '—']],
     styles: {
       font: PDF_FONT_FAMILY,
       fontSize: 9,
       cellPadding: 4,
       textColor: [15, 23, 42],
     },
-    columnStyles: {
-      0: { cellWidth: 130, fontStyle: 'bold', textColor: [100, 116, 139] },
-      1: { cellWidth: 'auto' },
+    headStyles: {
+      font: PDF_FONT_FAMILY,
+      fontStyle: 'bold',
+      fillColor: [30, 58, 109],
+      textColor: [255, 255, 255],
     },
-    body: [
-      ['Toplam Ücret', formatPdfMoney(Number(reservation.toplam_ucret), options.canViewPrices)],
-      ['Ödenen Tutar', formatPdfMoney(getTotalCollected(reservation), options.canViewPrices)],
-      ['Kalan Bakiye', formatPdfMoney(getRemainingBalance(reservation), options.canViewPrices)],
-    ],
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    theme: 'grid',
   })
 
   y = tableFinalY(doc) + 14

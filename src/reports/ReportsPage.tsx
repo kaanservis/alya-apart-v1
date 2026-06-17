@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
+import { useCanViewPrices, useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 import {
   buildReportData,
   formatPercent,
@@ -51,6 +51,7 @@ function SummaryCard({
 
 export function ReportsPage({ refreshToken }: ReportsPageProps) {
   const formatReportCurrency = useFormatAdminCurrency()
+  const canViewPrices = useCanViewPrices()
   const { units, reservations, expenses, loading, error } = useReportsData(refreshToken)
   const [preset, setPreset] = useState<ReportFilterPreset>('season')
   const [customStart, setCustomStart] = useState('')
@@ -74,11 +75,11 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
     setExporting(type)
     try {
       if (type === 'season') {
-        await exportSeasonReportPdf(report, range)
+        await exportSeasonReportPdf(report, range, canViewPrices)
       } else if (type === 'detailed') {
-        await exportDetailedReportPdf(report, range, reservations, unitMap)
+        await exportDetailedReportPdf(report, range, reservations, unitMap, canViewPrices)
       } else {
-        exportReportExcel(report, range)
+        exportReportExcel(report, range, canViewPrices)
       }
     } finally {
       setExporting(null)
@@ -88,7 +89,7 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
   async function handleRoomPdf(row: RoomReportRow) {
     setExportingRoomId(row.unitId)
     try {
-      await exportRoomReportPdf(row, range, reservations)
+      await exportRoomReportPdf(row, range, reservations, canViewPrices)
     } finally {
       setExportingRoomId(null)
     }
@@ -231,7 +232,7 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
             <div className="border-b border-slate-100 px-5 py-4">
               <h3 className="text-lg font-bold text-slate-900">Raporlar</h3>
               <p className="mt-1 text-sm text-slate-600">
-                Seçili dönemde oda bazlı gelir, kişi sayısı ve tahsilat özeti.
+                Seçili dönemde oda bazlı gelir, kişi sayısı ve ödeme özeti.
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -243,7 +244,7 @@ export function ReportsPage({ refreshToken }: ReportsPageProps) {
                     <th className="px-4 py-3 font-bold">Toplam Kişi</th>
                     <th className="px-4 py-3 font-bold">Toplam Gece</th>
                     <th className="px-4 py-3 font-bold">Toplam Ücret</th>
-                    <th className="px-4 py-3 font-bold">Alınan Ücret</th>
+                    <th className="px-4 py-3 font-bold">Tahsil Edilen</th>
                     <th className="px-4 py-3 font-bold">Kalan Bakiye</th>
                     <th className="px-4 py-3 font-bold">PDF Rapor</th>
                   </tr>

@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useCanViewPrices } from '../auth/useFormatAdminCurrency'
 import type { AccommodationUnit, Reservation } from '../types/database'
+import { CustomerDetailPanel } from '../customers/CustomerDetailPanel'
 import { SupabaseConnectionTest } from '../components/SupabaseConnectionTest'
 import { GuestCheckInPanel } from '../guests/GuestCheckInPanel'
 import { exportGuestRegistrationPdf } from '../guests/guestRegistrationPdf'
@@ -87,11 +89,14 @@ export function WorkflowDashboard({
   onUpdated,
   onOdaKabulComplete,
 }: WorkflowDashboardProps) {
+  const canViewPrices = useCanViewPrices()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formKey, setFormKey] = useState(0)
   const [expandedPanel, setExpandedPanel] = useState<SummaryPanelKey | null>(null)
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
   const [checkInReservation, setCheckInReservation] = useState<Reservation | null>(null)
+  const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null)
+  const [pendingDetailReservation, setPendingDetailReservation] = useState<Reservation | null>(null)
 
   function handleWorkflowUpdated() {
     onUpdated()
@@ -146,10 +151,46 @@ export function WorkflowDashboard({
     return units.find((unit) => unit.id === checkInReservation.konaklama_birimi_id) ?? null
   }, [checkInReservation, units])
 
-  function handleSaved() {
+  const unitNameById = useMemo(
+    () => new Map(units.map((unit) => [unit.id, unit.name])),
+    [units],
+  )
+
+  const detailReservation = useMemo(() => {
+    if (!selectedReservationId) {
+      return null
+    }
+
+    const fromList = reservations.find((reservation) => reservation.id === selectedReservationId)
+    if (fromList) {
+      return fromList
+    }
+
+    if (pendingDetailReservation?.id === selectedReservationId) {
+      return pendingDetailReservation
+    }
+
+    return null
+  }, [selectedReservationId, reservations, pendingDetailReservation])
+
+  useEffect(() => {
+    if (
+      pendingDetailReservation &&
+      reservations.some((reservation) => reservation.id === pendingDetailReservation.id)
+    ) {
+      setPendingDetailReservation(null)
+    }
+  }, [reservations, pendingDetailReservation])
+
+  function handleSaved(savedReservation?: Reservation) {
     handleWorkflowUpdated()
     setShowCreateForm(false)
     setFormKey((current) => current + 1)
+
+    if (savedReservation) {
+      setPendingDetailReservation(savedReservation)
+      setSelectedReservationId(savedReservation.id)
+    }
   }
 
   function toggleSummaryPanel(key: SummaryPanelKey) {
@@ -366,7 +407,7 @@ export function WorkflowDashboard({
                 onOpenCheckIn={(reservation) => setCheckInReservation(reservation)}
                 onOpenPayment={() => setSelectedUnitId(unit.id)}
                 onOpenPdf={(reservation) => {
-                  void exportGuestRegistrationPdf(unit.name, reservation)
+                  void exportGuestRegistrationPdf(unit.name, reservation, canViewPrices)
                 }}
               />
             )
@@ -413,6 +454,17 @@ export function WorkflowDashboard({
           unitName={checkInUnit.name}
           onUpdated={handleWorkflowUpdated}
           onOdaKabulComplete={handleOdaKabulComplete}
+        />
+      )}
+
+      {detailReservation && (
+        <CustomerDetailPanel
+          reservation={detailReservation}
+          unitName={unitNameById.get(detailReservation.konaklama_birimi_id) ?? '—'}
+          units={units}
+          reservations={reservations}
+          onClose={() => setSelectedReservationId(null)}
+          onUpdated={handleWorkflowUpdated}
         />
       )}
     </div>

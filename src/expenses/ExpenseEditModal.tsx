@@ -1,35 +1,32 @@
 import { useEffect, useState } from 'react'
+import { adminActionBtnPrimary, adminActionBtnSecondary } from '../components/admin/adminMobileStyles'
+import { sanitizePriceInput } from '../reservations/formInputHelpers'
+import { updateExpense } from './expenseService'
+import { formatExpenseShortDate, hasFormErrors, validateExpenseForm } from './expenseCalculations'
 import type { Expense, ExpenseFormErrors, ExpenseFormValues } from './types'
-import { EMPTY_EXPENSE_FORM } from './types'
-import { createExpense, updateExpense } from './expenseService'
-import { hasFormErrors, validateExpenseForm } from './expenseCalculations'
 
-interface ExpenseFormModalProps {
-  mode: 'create' | 'edit'
-  expense?: Expense
+interface ExpenseEditModalProps {
+  expense: Expense
   onClose: () => void
   onSaved: () => void
 }
 
 function expenseToFormValues(expense: Expense): ExpenseFormValues {
   return {
-    tarih: expense.tarih,
     aciklama: expense.aciklama,
     tutar: String(expense.tutar),
   }
 }
 
-export function ExpenseFormModal({ mode, expense, onClose, onSaved }: ExpenseFormModalProps) {
-  const [values, setValues] = useState<ExpenseFormValues>(
-    expense ? expenseToFormValues(expense) : EMPTY_EXPENSE_FORM,
-  )
+export function ExpenseEditModal({ expense, onClose, onSaved }: ExpenseEditModalProps) {
+  const [values, setValues] = useState<ExpenseFormValues>(() => expenseToFormValues(expense))
   const [errors, setErrors] = useState<ExpenseFormErrors>({})
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    setValues(expense ? expenseToFormValues(expense) : EMPTY_EXPENSE_FORM)
+    setValues(expenseToFormValues(expense))
     setErrors({})
-  }, [expense, mode])
+  }, [expense])
 
   function handleChange(field: keyof ExpenseFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -54,17 +51,12 @@ export function ExpenseFormModal({ mode, expense, onClose, onSaved }: ExpenseFor
     setSubmitting(true)
 
     try {
-      if (mode === 'edit' && expense) {
-        await updateExpense(expense.id, values)
-      } else {
-        await createExpense(values)
-      }
-
+      await updateExpense(expense.id, values)
       onSaved()
       onClose()
     } catch (error) {
       setErrors({
-        submit: error instanceof Error ? error.message : 'Masraf kaydedilemedi.',
+        submit: error instanceof Error ? error.message : 'Masraf güncellenemedi.',
       })
     } finally {
       setSubmitting(false)
@@ -76,17 +68,18 @@ export function ExpenseFormModal({ mode, expense, onClose, onSaved }: ExpenseFor
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="expense-form-title"
+        aria-labelledby="expense-edit-title"
         className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-slate-500">
-              {mode === 'create' ? 'Yeni Masraf' : 'Masraf Düzenle'}
-            </p>
-            <h3 id="expense-form-title" className="mt-1 text-xl font-semibold text-slate-900">
-              {mode === 'create' ? 'Masraf Ekle' : 'Masraf Güncelle'}
+            <p className="text-sm font-medium text-slate-500">Masraf Düzenle</p>
+            <h3 id="expense-edit-title" className="mt-1 text-xl font-semibold text-slate-900">
+              Kayıt Güncelle
             </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Tarih: {formatExpenseShortDate(expense.tarih)} (otomatik)
+            </p>
           </div>
           <button
             type="button"
@@ -97,7 +90,7 @@ export function ExpenseFormModal({ mode, expense, onClose, onSaved }: ExpenseFor
           </button>
         </div>
 
-        <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+        <form className="mt-5 space-y-4" onSubmit={(event) => void handleSubmit(event)}>
           {errors.submit && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {errors.submit}
@@ -105,18 +98,7 @@ export function ExpenseFormModal({ mode, expense, onClose, onSaved }: ExpenseFor
           )}
 
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Tarih</span>
-            <input
-              type="date"
-              value={values.tarih}
-              onChange={(event) => handleChange('tarih', event.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-slate-900 focus:ring-2"
-            />
-            {errors.tarih && <span className="mt-1 block text-xs text-red-600">{errors.tarih}</span>}
-          </label>
-
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Açıklama</span>
+            <span className="mb-1 block font-medium text-slate-700">Masraf Açıklaması</span>
             <input
               type="text"
               value={values.aciklama}
@@ -129,32 +111,23 @@ export function ExpenseFormModal({ mode, expense, onClose, onSaved }: ExpenseFor
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Tutar</span>
+            <span className="mb-1 block font-medium text-slate-700">Tutar (₺)</span>
             <input
-              type="number"
-              min={0}
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={values.tutar}
-              onChange={(event) => handleChange('tutar', event.target.value)}
+              onChange={(event) => handleChange('tutar', sanitizePriceInput(event.target.value))}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-slate-900 focus:ring-2"
             />
             {errors.tutar && <span className="mt-1 block text-xs text-red-600">{errors.tutar}</span>}
           </label>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
+            <button type="button" onClick={onClose} className={adminActionBtnSecondary}>
               İptal
             </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-            >
-              {submitting ? 'Kaydediliyor...' : mode === 'create' ? 'Ekle' : 'Güncelle'}
+            <button type="submit" disabled={submitting} className={`${adminActionBtnPrimary} disabled:opacity-60`}>
+              {submitting ? 'Kaydediliyor...' : 'Güncelle'}
             </button>
           </div>
         </form>

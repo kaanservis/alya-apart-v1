@@ -1,5 +1,6 @@
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { getTurkeyDateKey } from '../lib/turkeyDate'
+import { isDateOccupiedByReservation } from '../reservations/validation'
 import { addDays, parseDateKey, reservationOverlapsRange, toDateKey } from './dateUtils'
 import type { CalendarCellState, CalendarUnitRowData, ReservationSegment } from './types'
 
@@ -40,8 +41,7 @@ export function isDateReserved(
     (reservation) =>
       reservation.konaklama_birimi_id === unitId &&
       reservation.durum === 'Aktif' &&
-      reservation.giris_tarihi <= dateKey &&
-      reservation.cikis_tarihi >= dateKey,
+      isDateOccupiedByReservation(dateKey, reservation.giris_tarihi, reservation.cikis_tarihi),
   )
 }
 
@@ -90,22 +90,33 @@ export function buildUnitRowData(
           rangeEnd,
         ),
     )
-    .map((reservation) => {
+    .flatMap((reservation) => {
       const reservationStart = parseDateKey(reservation.giris_tarihi)
-      const reservationEnd = parseDateKey(reservation.cikis_tarihi)
+      const lastOccupiedDay = addDays(parseDateKey(reservation.cikis_tarihi), -1)
+
+      if (toDateKey(lastOccupiedDay) < reservation.giris_tarihi) {
+        return []
+      }
+
+      const reservationEnd = lastOccupiedDay
       const segmentStart = reservationStart < rangeStart ? rangeStart : reservationStart
       const segmentEnd = reservationEnd > rangeEnd ? rangeEnd : reservationEnd
       const startIndex = visibleDates.findIndex((date) => toDateKey(date) === toDateKey(segmentStart))
       const endIndex = visibleDates.findIndex((date) => toDateKey(date) === toDateKey(segmentEnd))
 
-      return {
-        reservation,
-        startIndex,
-        span: endIndex - startIndex + 1,
-        color: getReservationColor(reservation, unit),
+      if (startIndex < 0 || endIndex < startIndex) {
+        return []
       }
+
+      return [
+        {
+          reservation,
+          startIndex,
+          span: endIndex - startIndex + 1,
+          color: getReservationColor(reservation, unit),
+        },
+      ]
     })
-    .filter((segment) => segment.startIndex >= 0 && segment.span > 0)
 
   return { unit, segments }
 }

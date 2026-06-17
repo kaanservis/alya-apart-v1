@@ -1,11 +1,11 @@
 import {
-  formatTurkeyDateKey,
+  formatTurkeyInstant,
   getSeasonDateRange,
   getTurkeyDateKey,
   getTurkeyMonthDateRange,
 } from '../lib/turkeyDate'
+import { formatMoneyByPermission, formatPdfMoneyByPermission } from '../auth/formatMoney'
 import type { Expense, ExpenseStatistics } from './types'
-import { MASKED_MONEY_LABEL } from '../auth/formatMoney'
 
 function sumExpensesInRange(expenses: Expense[], start: string, end: string): number {
   return expenses
@@ -29,37 +29,52 @@ export function calculateExpenseStatistics(
   }
 }
 
+export function calculateExpenseTotal(expenses: Expense[]): number {
+  return expenses.reduce((total, expense) => total + Number(expense.tutar), 0)
+}
+
 export function formatCurrency(value: number, canViewPrices = true) {
-  if (!canViewPrices) {
-    return MASKED_MONEY_LABEL
+  return formatMoneyByPermission(value, canViewPrices)
+}
+
+export function formatExpensePdfCurrency(value: number, canViewPrices = true) {
+  return formatPdfMoneyByPermission(value, canViewPrices)
+}
+
+export function formatExpenseShortDate(value: string) {
+  const [year, month, day] = value.split('-')
+  if (!year || !month || !day) {
+    return value
   }
 
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 0,
-  }).format(value)
+  return `${day}.${month}.${year}`
+}
+
+export function formatExpenseReportTimestamp(date = new Date()) {
+  return formatTurkeyInstant(date, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export function formatDate(value: string) {
-  return formatTurkeyDateKey(value)
+  return formatExpenseShortDate(value)
 }
 
 export function parseAmount(value: string): number {
-  const parsed = Number(value.replace(',', '.'))
+  const normalized = value.trim().replace(/\./g, '').replace(',', '.')
+  const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : NaN
 }
 
 export function validateExpenseForm(values: {
-  tarih: string
   aciklama: string
   tutar: string
 }) {
   const errors: Record<string, string> = {}
-
-  if (!values.tarih) {
-    errors.tarih = 'Tarih zorunludur.'
-  }
 
   if (!values.aciklama.trim()) {
     errors.aciklama = 'Açıklama zorunludur.'

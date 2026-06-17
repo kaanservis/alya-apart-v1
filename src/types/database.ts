@@ -45,6 +45,7 @@ export interface PaymentRecord {
   amount: number
   payment_date: string
   note: string | null
+  recorded_by: string | null
   created_at: string
 }
 

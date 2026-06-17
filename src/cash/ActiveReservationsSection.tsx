@@ -79,7 +79,7 @@ export function ActiveReservationsSection({ rows }: ActiveReservationsSectionPro
                   <th className="px-4 py-3 font-semibold">Giriş</th>
                   <th className="px-4 py-3 font-semibold">Çıkış</th>
                   <th className="px-4 py-3 font-semibold">Toplam Ücret</th>
-                  <th className="px-4 py-3 font-semibold">Alınan Ücret</th>
+                  <th className="px-4 py-3 font-semibold">Tahsil Edilen</th>
                   <th className="px-4 py-3 font-semibold">Kalan Bakiye</th>
                 </tr>
               </thead>

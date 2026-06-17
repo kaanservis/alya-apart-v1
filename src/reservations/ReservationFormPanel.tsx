@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
+import { useCanViewPrices, useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { applyReservationFieldChange, buildNewReservationFormValues, reservationToFormValues } from './formState'
 import {
@@ -21,7 +21,6 @@ import {
   type ReservationFormValues,
 } from './types'
 import {
-  calculateRemainingBalance,
   getAvailableUnits,
   hasFormErrors,
   parseAmount,
@@ -31,7 +30,7 @@ import {
 export interface ReservationFormPanelProps {
   units: AccommodationUnit[]
   reservations: Reservation[]
-  onSaved: () => void
+  onSaved: (reservation?: Reservation) => void
   onCancel?: () => void
   mode?: 'create' | 'edit'
   editReservation?: Reservation
@@ -120,6 +119,7 @@ export function ReservationFormPanel({
 }: ReservationFormPanelProps) {
   const { hasPermission } = useAuth()
   const formatCurrency = useFormatAdminCurrency()
+  const canViewPrices = useCanViewPrices()
   const canChangeDates = hasPermission('can_change_dates')
   const canEditPrices = hasPermission('can_edit_prices')
   const canDeleteReservations = hasPermission('can_delete_reservations')
@@ -179,21 +179,8 @@ export function ReservationFormPanel({
 
   const totalAmount = useMemo(() => parseAmount(values.toplam_ucret), [values.toplam_ucret])
 
-  const collectedAmount = useMemo(() => {
-    const parsed = parseAmount(values.alinan_tutar)
-    return Number.isNaN(parsed) ? 0 : parsed
-  }, [values.alinan_tutar])
-
-  const remainingBalance = useMemo(() => {
-    const toplam = parseAmount(values.toplam_ucret)
-    if (Number.isNaN(toplam)) {
-      return 0
-    }
-    return calculateRemainingBalance(toplam, collectedAmount)
-  }, [values.toplam_ucret, collectedAmount])
-
   const showGuestSection = datesValid && Boolean(values.konaklama_birimi_id)
-  const showPricingSection = showGuestSection
+  const showPricingSection = showGuestSection && canViewPrices
 
   function handleChange(field: keyof ReservationFormValues, value: string) {
     const next = applyReservationFieldChange(values, field, value, pricingSource)
@@ -216,10 +203,7 @@ export function ReservationFormPanel({
     handleChange('telefon', normalizePhoneDigits(raw))
   }
 
-  function handlePriceChange(
-    field: 'gunluk_ucret' | 'toplam_ucret' | 'alinan_tutar',
-    raw: string,
-  ) {
+  function handlePriceChange(field: 'gunluk_ucret' | 'toplam_ucret', raw: string) {
     handleChange(field, sanitizePriceInput(raw))
   }
 
@@ -245,17 +229,19 @@ export function ReservationFormPanel({
     setSubmitting(true)
 
     try {
+      let savedReservation: Reservation
+
       if (mode === 'edit' && editReservation) {
-        await updateReservation(
+        savedReservation = await updateReservation(
           editReservation.id,
           values,
           editReservation.konaklama_birimi_id,
         )
       } else {
-        await createReservation(values)
+        savedReservation = await createReservation(values)
       }
 
-      onSaved()
+      onSaved(savedReservation)
     } catch (error) {
       setErrors({
         submit: error instanceof Error ? error.message : 'Rezervasyon kaydedilemedi.',
@@ -291,7 +277,6 @@ export function ReservationFormPanel({
   }
 
   const totalDisplay = Number.isNaN(totalAmount) ? '—' : formatCurrency(totalAmount)
-  const balanceDisplay = formatCurrency(remainingBalance)
   const nightsDisplay = nights > 0 ? String(nights) : '—'
 
   return (
@@ -474,10 +459,10 @@ export function ReservationFormPanel({
         )}
 
         {showPricingSection && (
-          <FormSection title="Fiyat ve Ödeme" accent="orange">
-            <div className="grid gap-6 sm:grid-cols-3">
+          <FormSection title="Ücret Bilgileri" accent="orange">
+            <div className="grid gap-6 sm:grid-cols-2">
               <label className="block text-sm">
-                <span className="mb-2 block font-medium text-slate-700">Gecelik Ücret</span>
+                <span className="mb-2 block font-medium text-slate-700">Günlük Ücret (₺)</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -493,7 +478,7 @@ export function ReservationFormPanel({
               </label>
 
               <label className="block text-sm">
-                <span className="mb-2 block font-medium text-slate-700">Toplam Ücret</span>
+                <span className="mb-2 block font-medium text-slate-700">Toplam Ücret (₺)</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -507,33 +492,15 @@ export function ReservationFormPanel({
                   <span className="mt-1 block text-xs text-red-600">{errors.toplam_ucret}</span>
                 )}
               </label>
-
-              <label className="block text-sm">
-                <span className="mb-2 block font-medium text-slate-700">Alınan Ücret</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={values.alinan_tutar}
-                  placeholder="0,00"
-                  readOnly={!canEditPrices}
-                  onChange={(event) => handlePriceChange('alinan_tutar', event.target.value)}
-                  className={`${fieldClassName}${!canEditPrices ? ' cursor-not-allowed bg-slate-100' : ''}`}
-                />
-                {errors.alinan_tutar && (
-                  <span className="mt-1 block text-xs text-red-600">{errors.alinan_tutar}</span>
-                )}
-              </label>
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <SummaryCard label="Gece Sayısı" value={nightsDisplay} accent="blue" />
               <SummaryCard label="Toplam Ücret" value={totalDisplay} accent="orange" />
-              <SummaryCard
-                label="Alınan Ücret"
-                value={formatCurrency(collectedAmount)}
-                accent="blue"
-              />
-              <SummaryCard label="Kalan Bakiye" value={balanceDisplay} accent="slate" />
             </div>
+            <p className="mt-4 text-sm text-slate-600">
+              Ödemeler rezervasyon kaydedildikten sonra cari hesap üzerinden eklenir.
+            </p>
           </FormSection>
         )}
 

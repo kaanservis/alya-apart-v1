@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
 import { getGuestWhatsAppUrl } from '../lib/whatsapp'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { formatReservationDate } from '../reservations/reservationDisplay'
-import { getRemainingBalance } from '../reservations/depositCalculations'
+import { buildPaymentSummary } from '../reservations/paymentCalculations'
+import { fetchReservationPaymentState } from '../reservations/tahsilatService'
 import { getGuestInitials } from '../guests/guestDisplay'
 import { completeCheckout, completeCleaning } from './workflowService'
 import {
@@ -42,6 +43,32 @@ export function WorkflowUnitCard({
   const formatCurrency = useFormatAdminCurrency()
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [remainingBalance, setRemainingBalance] = useState(0)
+
+  useEffect(() => {
+    if (!activeReservation) {
+      setRemainingBalance(0)
+      return
+    }
+
+    let cancelled = false
+
+    void fetchReservationPaymentState(activeReservation.id)
+      .then((state) => {
+        if (!cancelled) {
+          setRemainingBalance(state.summary.remainingBalance)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRemainingBalance(buildPaymentSummary(activeReservation, []).remainingBalance)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeReservation?.id, activeReservation?.updated_at])
 
   const displayStatus = useMemo(() => {
     const base = computeRoomDisplayStatus(unit, activeReservation)
@@ -166,7 +193,7 @@ export function WorkflowUnitCard({
             👥 {activeReservation.kisi_sayisi} Kişi
           </p>
           <p className="workflow-room-text mt-1 text-xs font-bold max-md:text-[11px] sm:text-sm">
-            Kalan: {formatCurrency(getRemainingBalance(activeReservation))}
+            Kalan: {formatCurrency(remainingBalance)}
           </p>
           <p className="workflow-room-text-muted mt-1 text-[10px] max-md:text-[9px] sm:text-xs">
             Çıkış: {formatReservationDate(activeReservation.cikis_tarihi)}

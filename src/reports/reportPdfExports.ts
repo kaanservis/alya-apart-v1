@@ -29,6 +29,7 @@ function drawSummaryStrip(
   report: ReportData,
   rangeLabel: string,
   startY: number,
+  canViewPrices: boolean,
 ) {
   autoTable(doc, {
     startY,
@@ -38,9 +39,9 @@ function drawSummaryStrip(
     body: [
       [
         rangeLabel,
-        formatPdfCurrency(report.summary.toplamGelir),
-        formatPdfCurrency(report.summary.toplamMasraf),
-        formatPdfCurrency(report.summary.netKazanc),
+        formatPdfCurrency(report.summary.toplamGelir, canViewPrices),
+        formatPdfCurrency(report.summary.toplamMasraf, canViewPrices),
+        formatPdfCurrency(report.summary.netKazanc, canViewPrices),
         String(report.summary.toplamRezervasyon),
         String(report.summary.toplamGeceleme),
       ],
@@ -53,6 +54,7 @@ function drawRoomTable(
   doc: Awaited<ReturnType<typeof createThemedPdf>>,
   report: ReportData,
   startY: number,
+  canViewPrices: boolean,
 ) {
   autoTable(doc, {
     startY,
@@ -65,7 +67,7 @@ function drawRoomTable(
         'Toplam Kişi',
         'Toplam Gece',
         'Toplam Ücret',
-        'Alınan Ücret',
+        'Tahsil Edilen',
         'Kalan Bakiye',
       ],
     ],
@@ -74,9 +76,9 @@ function drawRoomTable(
       String(row.reservationCount),
       String(row.totalGuests),
       String(row.totalNights),
-      formatPdfCurrency(row.totalRevenue),
-      formatPdfCurrency(row.collectedAmount),
-      formatPdfCurrency(row.remainingBalance),
+      formatPdfCurrency(row.totalRevenue, canViewPrices),
+      formatPdfCurrency(row.collectedAmount, canViewPrices),
+      formatPdfCurrency(row.remainingBalance, canViewPrices),
     ]),
     ...getPdfTableStyles({
       rowPageBreak: 'avoid',
@@ -88,6 +90,7 @@ function drawRoomSummaryBoxes(
   doc: Awaited<ReturnType<typeof createThemedPdf>>,
   report: ReportData,
   startY: number,
+  canViewPrices: boolean,
 ) {
   let y = startY
 
@@ -121,9 +124,9 @@ function drawRoomSummaryBoxes(
       doc.text(`Rezervasyon: ${row.reservationCount}`, PDF_THEME.margin + 12, y + 34)
       doc.text(`Kişi: ${row.totalGuests}`, PDF_THEME.margin + 150, y + 34)
       doc.text(`Geceleme: ${row.totalNights}`, PDF_THEME.margin + 250, y + 34)
-      doc.text(`Toplam Ücret: ${formatPdfCurrency(row.totalRevenue)}`, PDF_THEME.margin + 12, y + 50)
-      doc.text(`Tahsil Edilen: ${formatPdfCurrency(row.collectedAmount)}`, PDF_THEME.margin + 12, y + 64)
-      doc.text(`Kalan: ${formatPdfCurrency(row.remainingBalance)}`, PDF_THEME.margin + 250, y + 64)
+      doc.text(`Toplam Ücret: ${formatPdfCurrency(row.totalRevenue, canViewPrices)}`, PDF_THEME.margin + 12, y + 50)
+      doc.text(`Tahsil Edilen: ${formatPdfCurrency(row.collectedAmount, canViewPrices)}`, PDF_THEME.margin + 12, y + 64)
+      doc.text(`Kalan: ${formatPdfCurrency(row.remainingBalance, canViewPrices)}`, PDF_THEME.margin + 250, y + 64)
 
       y += 88
     })
@@ -139,22 +142,26 @@ function buildOccupantList(
   return names.map((name) => `- ${name}`).join('\n')
 }
 
-export async function exportSeasonReportPdf(report: ReportData, range: ReportDateRange) {
+export async function exportSeasonReportPdf(
+  report: ReportData,
+  range: ReportDateRange,
+  canViewPrices = true,
+) {
   const doc = await createThemedPdf('portrait')
   const startY = drawStandardHeader(doc, {
     documentTitle: 'SEZON RAPORU',
     documentSubtitle: getSeasonYearLabel(range),
   })
 
-  drawSummaryStrip(doc, report, range.label, startY)
+  drawSummaryStrip(doc, report, range.label, startY, canViewPrices)
   let y = tableFinalY(doc) + 16
 
   y = drawSectionTitle(doc, y, 'Oda Özet Tablosu')
-  drawRoomTable(doc, report, y)
+  drawRoomTable(doc, report, y, canViewPrices)
   y = tableFinalY(doc) + 18
 
   y = drawSectionTitle(doc, y, 'Oda Bazlı Özet')
-  drawRoomSummaryBoxes(doc, report, y)
+  drawRoomSummaryBoxes(doc, report, y, canViewPrices)
 
   drawStandardFooter(doc)
   doc.save(`alya-apart-sezon-raporu-${range.start}-${range.end}.pdf`)
@@ -165,6 +172,7 @@ export async function exportDetailedReportPdf(
   range: ReportDateRange,
   reservations: Reservation[],
   unitMap: Map<string, string>,
+  canViewPrices = true,
 ) {
   const inRangeReservations = reservations
     .filter(
@@ -183,7 +191,7 @@ export async function exportDetailedReportPdf(
     documentSubtitle: range.label,
   })
 
-  drawSummaryStrip(doc, report, range.label, startY)
+  drawSummaryStrip(doc, report, range.label, startY, canViewPrices)
   let y = tableFinalY(doc) + 18
 
   inRangeReservations.forEach((reservation, index) => {
@@ -208,9 +216,9 @@ export async function exportDetailedReportPdf(
         ['Çıkış Tarihi', formatPdfDate(reservation.cikis_tarihi)],
         ['Konaklayanlar', occupants],
         ['Toplam Kişi', String(reservation.kisi_sayisi)],
-        ['Toplam Ücret', formatPdfCurrency(reservation.toplam_ucret)],
-        ['Ödenen Tutar', formatPdfCurrency(getTotalCollected(reservation))],
-        ['Kalan Bakiye', formatPdfCurrency(getRemainingBalance(reservation))],
+        ['Toplam Ücret', formatPdfCurrency(reservation.toplam_ucret, canViewPrices)],
+        ['Ödenen Tutar', formatPdfCurrency(getTotalCollected(reservation), canViewPrices)],
+        ['Kalan Bakiye', formatPdfCurrency(getRemainingBalance(reservation), canViewPrices)],
       ],
       ...getPdfTableStyles({
         styles: { fontSize: 8.5 },

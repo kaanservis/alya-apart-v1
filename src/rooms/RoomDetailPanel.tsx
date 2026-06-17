@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCanViewPrices } from '../auth/useFormatAdminCurrency'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { SlideOverPanel } from '../components/SlideOverPanel'
@@ -9,7 +10,7 @@ import { exportRoomReservationsExcel } from '../customers/customerExports'
 import { findRoomReservations } from '../customers/customerListUtils'
 import { formatReservationDate } from '../reservations/reservationDisplay'
 import { getRemainingBalance } from '../reservations/depositCalculations'
-import { ReservationTahsilatSection } from '../reservations/ReservationTahsilatSection'
+import { ReservationCariHesapSection } from '../reservations/ReservationCariHesapSection'
 import { RoomGuestsSection } from '../guests/RoomGuestsSection'
 import {
   findActiveReservationForUnit,
@@ -40,11 +41,13 @@ export function RoomDetailPanel({
   onUpdated,
   onOdaKabulComplete,
 }: RoomDetailPanelProps) {
+  const canViewPrices = useCanViewPrices()
   const [roomHistory, setRoomHistory] = useState<Reservation[]>([])
   const [activeReservationState, setActiveReservationState] = useState<Reservation | null>(null)
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [checkInOpen, setCheckInOpen] = useState(false)
+  const [paymentRefreshToken, setPaymentRefreshToken] = useState(0)
   const renderCountRef = useRef(0)
   const loadReservationCallCountRef = useRef(0)
   const onUpdatedRef = useRef(onUpdated)
@@ -211,9 +214,10 @@ export function RoomDetailPanel({
     })
   }, [])
 
-  const handleTahsilatUpdated = useCallback((updated: Reservation) => {
+  const handlePaymentUpdated = useCallback((updated: Reservation) => {
     setActiveReservationState(updated)
     onUpdatedRef.current()
+    setPaymentRefreshToken((current) => current + 1)
   }, [])
 
   async function handleCompleteCheckout() {
@@ -271,7 +275,7 @@ export function RoomDetailPanel({
               disabled={!displayedReservation}
               onClick={() => {
                 if (displayedReservation) {
-                  void exportGuestRegistrationPdf(unit.name, displayedReservation)
+                  void exportGuestRegistrationPdf(unit.name, displayedReservation, canViewPrices)
                 }
               }}
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
@@ -281,7 +285,7 @@ export function RoomDetailPanel({
             <button
               type="button"
               disabled={roomHistory.length === 0}
-              onClick={() => void exportRoomReservationsExcel(unit.name, roomHistory)}
+              onClick={() => void exportRoomReservationsExcel(unit.name, roomHistory, canViewPrices)}
               className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               Excel Export
@@ -319,12 +323,12 @@ export function RoomDetailPanel({
               </div>
             </dl>
             <div className="mt-5 border-t border-purple-100 pt-5">
-              <h4 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-600">
-                Ödeme
-              </h4>
-              <ReservationTahsilatSection
+              <ReservationCariHesapSection
                 reservation={displayedReservation}
-                onUpdated={handleTahsilatUpdated}
+                refreshToken={paymentRefreshToken}
+                sectionTitle=""
+                showTopSummary={false}
+                onUpdated={handlePaymentUpdated}
               />
             </div>
             <div className="mt-5 border-t border-purple-100 pt-5">
@@ -336,7 +340,9 @@ export function RoomDetailPanel({
                 unit={unit}
                 onUpdated={onUpdated}
                 onOpenCheckIn={() => setCheckInOpen(true)}
-                onExportPdf={() => void exportGuestRegistrationPdf(unit.name, displayedReservation)}
+                onExportPdf={() =>
+                  void exportGuestRegistrationPdf(unit.name, displayedReservation, canViewPrices)
+                }
               />
             </div>
             <div className="mt-5 border-t border-purple-100 pt-5">

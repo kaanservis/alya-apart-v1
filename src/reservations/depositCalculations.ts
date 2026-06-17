@@ -1,21 +1,34 @@
-import type { Reservation } from '../types/database'
+import type { PaymentRecord, Reservation } from '../types/database'
+import { buildPaymentSummary } from './paymentCalculations'
 
-export type ReservationPaymentFields = Pick<Reservation, 'toplam_ucret' | 'alinan_tutar'>
+export type ReservationPaymentFields = Pick<Reservation, 'toplam_ucret'>
 
-export function getTotalCollected(reservation: ReservationPaymentFields): number {
-  return Number(reservation.alinan_tutar)
+export function getTotalCollected(
+  reservation: ReservationPaymentFields,
+  payments: PaymentRecord[] = [],
+): number {
+  return buildPaymentSummary(reservation, payments).totalCollected
 }
 
-export function getRemainingBalance(reservation: ReservationPaymentFields): number {
-  return Math.max(0, Number(reservation.toplam_ucret) - getTotalCollected(reservation))
+export function getRemainingBalance(
+  reservation: ReservationPaymentFields,
+  payments: PaymentRecord[] = [],
+): number {
+  return buildPaymentSummary(reservation, payments).remainingBalance
 }
 
-export function isAccountClosed(reservation: ReservationPaymentFields): boolean {
-  return Number(reservation.toplam_ucret) > 0 && getRemainingBalance(reservation) === 0
+export function isAccountClosed(
+  reservation: ReservationPaymentFields,
+  payments: PaymentRecord[] = [],
+): boolean {
+  return buildPaymentSummary(reservation, payments).isAccountClosed
 }
 
-export function getCheckoutDue(reservation: ReservationPaymentFields): number {
-  return getRemainingBalance(reservation)
+export function getCheckoutDue(
+  reservation: ReservationPaymentFields,
+  payments: PaymentRecord[] = [],
+): number {
+  return getRemainingBalance(reservation, payments)
 }
 
 export function calculateDepositSummary(_reservations: Reservation[]) {

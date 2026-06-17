@@ -16,13 +16,30 @@ export function parseAmount(value: string): number {
   return Number.isFinite(parsed) ? parsed : NaN
 }
 
+/**
+ * Returns true when `dateKey` falls inside [girisTarihi, cikisTarihi).
+ * Check-out day is exclusive — the room is available for a new check-in that day.
+ */
+export function isDateOccupiedByReservation(
+  dateKey: string,
+  girisTarihi: string,
+  cikisTarihi: string,
+): boolean {
+  return dateKey >= girisTarihi && dateKey < cikisTarihi
+}
+
+/**
+ * Two reservations conflict when their occupied date ranges overlap.
+ * Overlap exists when: (newCheckIn < existingCheckOut) AND (newCheckOut > existingCheckIn).
+ * Same-day turnover (new check-in on existing check-out) is allowed.
+ */
 export function datesOverlap(
   girisA: string,
   cikisA: string,
   girisB: string,
   cikisB: string,
 ): boolean {
-  return girisA <= cikisB && cikisA >= girisB
+  return girisA < cikisB && cikisA > girisB
 }
 
 export function findConflictingReservation(
@@ -115,20 +132,6 @@ export function validateReservationForm(
 
   if (Number.isNaN(toplamUcret) || toplamUcret < 0) {
     errors.toplam_ucret = 'Geçerli bir toplam ücret giriniz.'
-  }
-
-  const alinanTutar = parseAmount(values.alinan_tutar)
-
-  if (Number.isNaN(alinanTutar) || alinanTutar < 0) {
-    errors.alinan_tutar = 'Geçerli bir alınan ücret giriniz.'
-  }
-
-  if (
-    !Number.isNaN(toplamUcret) &&
-    !Number.isNaN(alinanTutar) &&
-    alinanTutar > toplamUcret
-  ) {
-    errors.alinan_tutar = 'Alınan ücret toplam ücretten fazla olamaz.'
   }
 
   if (

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { hasPermission } from '../auth/permissions'
+import { useCanViewPrices } from '../auth/useFormatAdminCurrency'
 import type { AccommodationUnit, Reservation } from '../types/database'
 import {
   buildCalendarExportEntries,
@@ -48,6 +49,7 @@ export function CalendarViewSection({
   onSaveSuccess,
 }: CalendarViewSectionProps) {
   const { user } = useAuth()
+  const canViewPrices = useCanViewPrices()
   const planningEnabled = Boolean(user && hasPermission(user, 'can_change_dates'))
 
   const [viewState, setViewState] = useState<CalendarViewState>(() => {
@@ -213,7 +215,7 @@ export function CalendarViewSection({
         <button
           type="button"
           disabled={loading || calendarExportEntries.length === 0}
-          onClick={() => void exportCalendarPdf(calendarExportEntries, periodLabel)}
+          onClick={() => void exportCalendarPdf(calendarExportEntries, periodLabel, canViewPrices)}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           PDF Dışa Aktar
@@ -221,7 +223,7 @@ export function CalendarViewSection({
         <button
           type="button"
           disabled={loading || calendarExportEntries.length === 0}
-          onClick={() => exportCalendarExcel(calendarExportEntries, periodLabel)}
+          onClick={() => exportCalendarExcel(calendarExportEntries, periodLabel, canViewPrices)}
           className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
         >
           Excel Dışa Aktar

@@ -1,4 +1,5 @@
 import { getBusinessWhatsAppNumberRaw } from '../settings/businessSettings'
+import { MASKED_MONEY_LABEL } from '../auth/formatMoney'
 
 export type WhatsAppMessageTemplate = 'checkIn' | 'checkoutReminder' | 'paymentReminder'
 
@@ -68,15 +69,20 @@ function formatBalanceForMessage(value: number) {
 
 export function buildWhatsAppMessage(
   template: WhatsAppMessageTemplate,
-  guest: { adSoyad: string; kalanBakiye?: number },
+  guest: { adSoyad: string; kalanBakiye?: number; canViewPrices?: boolean },
 ) {
   switch (template) {
     case 'checkIn':
       return `Merhaba ${guest.adSoyad},\nALYA APART rezervasyonunuz onaylanmıştır.`
     case 'checkoutReminder':
       return `Merhaba ${guest.adSoyad},\nBugün çıkış tarihinizdir.`
-    case 'paymentReminder':
-      return `Merhaba ${guest.adSoyad},\nKalan bakiyeniz: ${formatBalanceForMessage(guest.kalanBakiye ?? 0)} TL`
+    case 'paymentReminder': {
+      const balanceLabel =
+        guest.canViewPrices === false
+          ? MASKED_MONEY_LABEL
+          : `${formatBalanceForMessage(guest.kalanBakiye ?? 0)} TL`
+      return `Merhaba ${guest.adSoyad},\nKalan bakiyeniz: ${balanceLabel}`
+    }
   }
 }
 

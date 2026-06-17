@@ -12,13 +12,11 @@ function assertSupabaseClient() {
   return supabase
 }
 
-function buildReservationPayload(values: ReservationFormValues) {
+function buildReservationFields(values: ReservationFormValues) {
   const toplamUcret = parseAmount(values.toplam_ucret)
   const gunlukUcret = parseAmount(values.gunluk_ucret)
-  const alinanTutar = parseAmount(values.alinan_tutar)
   const durum = deriveReservationStatus(values.cikis_tarihi)
   const total = Number.isNaN(toplamUcret) ? 0 : toplamUcret
-  const collected = Number.isNaN(alinanTutar) ? 0 : alinanTutar
 
   return {
     ad_soyad: values.ad_soyad.trim(),
@@ -29,7 +27,6 @@ function buildReservationPayload(values: ReservationFormValues) {
     konaklama_birimi_id: values.konaklama_birimi_id,
     gunluk_ucret: gunlukUcret,
     toplam_ucret: total,
-    alinan_tutar: collected,
     notlar: values.notlar.trim() || null,
     durum: durum as ReservationStatus,
   }
@@ -55,7 +52,10 @@ async function syncAffectedUnitStatus(_unitId: string) {
 
 export async function createReservation(values: ReservationFormValues): Promise<Reservation> {
   const client = assertSupabaseClient()
-  const payload = buildReservationPayload(values)
+  const payload = {
+    ...buildReservationFields(values),
+    alinan_tutar: 0,
+  }
 
   const { data, error } = await client
     .from('reservations')
@@ -84,7 +84,7 @@ export async function updateReservation(
   previousUnitId?: string,
 ): Promise<Reservation> {
   const client = assertSupabaseClient()
-  const payload = buildReservationPayload(values)
+  const payload = buildReservationFields(values)
 
   const { data, error } = await client
     .from('reservations')

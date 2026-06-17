@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Reservation } from '../types/database'
 import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
-import { getRemainingBalance } from '../reservations/depositCalculations'
 import { formatReservationDate } from '../reservations/reservationDisplay'
+import { buildPaymentSummary } from '../reservations/paymentCalculations'
+import { fetchReservationPaymentState } from '../reservations/tahsilatService'
 
 interface ReservationPreviewCardProps {
   reservation: Reservation
@@ -33,8 +35,32 @@ export function ReservationPreviewCard({
   showBackdrop = false,
 }: ReservationPreviewCardProps) {
   const formatCurrency = useFormatAdminCurrency()
+  const [paymentSummary, setPaymentSummary] = useState(() =>
+    buildPaymentSummary(reservation, []),
+  )
+
+  useEffect(() => {
+    let cancelled = false
+
+    void fetchReservationPaymentState(reservation.id)
+      .then((state) => {
+        if (!cancelled) {
+          setPaymentSummary(state.summary)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPaymentSummary(buildPaymentSummary(reservation, []))
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [reservation])
+
   const cardWidth = 248
-  const estimatedHeight = 196
+  const estimatedHeight = 228
   const margin = 8
 
   let top = anchorRect.top - estimatedHeight - margin
@@ -45,7 +71,6 @@ export function ReservationPreviewCard({
   let left = anchorRect.left + anchorRect.width / 2 - cardWidth / 2
   left = Math.max(margin, Math.min(left, window.innerWidth - cardWidth - margin))
 
-  const remainingBalance = getRemainingBalance(reservation)
   const dateRange = `${formatReservationDate(reservation.giris_tarihi)} → ${formatReservationDate(reservation.cikis_tarihi)}`
 
   const card = (
@@ -84,11 +109,17 @@ export function ReservationPreviewCard({
         </span>
         Toplam: {formatCurrency(reservation.toplam_ucret)}
       </p>
+      <p className="mt-1.5 text-xs font-semibold text-emerald-700">
+        <span aria-hidden className="mr-1.5">
+          💵
+        </span>
+        Ödenen: {formatCurrency(paymentSummary.totalCollected)}
+      </p>
       <p className="mt-1.5 text-xs font-bold text-red-600">
         <span aria-hidden className="mr-1.5">
           💳
         </span>
-        Kalan: {formatCurrency(remainingBalance)}
+        Kalan: {formatCurrency(paymentSummary.remainingBalance)}
       </p>
     </div>
   )

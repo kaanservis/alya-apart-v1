@@ -1,13 +1,14 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useAuth } from './AuthContext'
-import { formatAdminCurrency } from './formatMoney'
+import { canViewPrices as resolveCanViewPrices, formatMoneyByPermission } from './formatMoney'
+
+export function useCanViewPrices() {
+  const { user } = useAuth()
+  return useMemo(() => resolveCanViewPrices(user), [user])
+}
 
 export function useFormatAdminCurrency() {
-  const { hasPermission } = useAuth()
-  const canViewPrices = hasPermission('can_view_prices')
+  const canView = useCanViewPrices()
 
-  return useCallback(
-    (value: number) => formatAdminCurrency(value, canViewPrices),
-    [canViewPrices],
-  )
+  return useCallback((value: number) => formatMoneyByPermission(value, canView), [canView])
 }

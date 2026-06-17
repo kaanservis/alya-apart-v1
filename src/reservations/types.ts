@@ -7,7 +7,6 @@ export interface ReservationFormValues {
   konaklama_birimi_id: string
   gunluk_ucret: string
   toplam_ucret: string
-  alinan_tutar: string
   notlar: string
 }
 
@@ -20,7 +19,6 @@ export interface ReservationFormErrors {
   konaklama_birimi_id?: string
   gunluk_ucret?: string
   toplam_ucret?: string
-  alinan_tutar?: string
   notlar?: string
   conflict?: string
   submit?: string
@@ -37,6 +35,5 @@ export const EMPTY_RESERVATION_FORM: ReservationFormValues = {
   konaklama_birimi_id: '',
   gunluk_ucret: '',
   toplam_ucret: '',
-  alinan_tutar: '0',
   notlar: '',
 }

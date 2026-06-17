@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CustomerDetailPanel } from './CustomerDetailPanel'
 import { exportCustomerListExcel, exportCustomerListPdf } from './customerExports'
 import { formatReservationDate } from '../reservations/reservationDisplay'
+import type { PaymentRecord } from '../types/database'
 import { getRemainingBalance, getTotalCollected } from '../reservations/depositCalculations'
 import {
   EMPTY_CUSTOMER_FILTERS,
@@ -10,12 +11,12 @@ import {
   type CustomerStatusFilter,
 } from './customerListUtils'
 import { useCustomersPage } from './useCustomersPage'
-import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
+import { useCanViewPrices, useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
+import { useBatchPaymentSummaries } from '../reservations/useBatchPaymentSummaries'
 
 interface CustomersPageProps {
   refreshToken: number
   onUpdated: () => void
-  onOdaKabulComplete?: () => void
 }
 
 const STATUS_FILTERS: { value: CustomerStatusFilter; label: string }[] = [
@@ -49,9 +50,17 @@ function StatusBadge({ status }: { status: CustomerListRow['reservation']['durum
   )
 }
 
-function CustomerMobileCard({ row, selected, onSelect }: CustomerRowContentProps) {
+function CustomerMobileCard({
+  row,
+  selected,
+  onSelect,
+  paymentsByReservation,
+}: CustomerRowContentProps & {
+  paymentsByReservation: Map<string, PaymentRecord[]>
+}) {
   const { reservation, unitName } = row
   const formatCurrency = useFormatAdminCurrency()
+  const payments = paymentsByReservation.get(reservation.id) ?? []
 
   return (
     <button
@@ -89,19 +98,19 @@ function CustomerMobileCard({ row, selected, onSelect }: CustomerRowContentProps
           <dd className="text-slate-800">{formatReservationDate(reservation.cikis_tarihi)}</dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Ödenen Tutar</dt>
-          <dd className="font-semibold text-emerald-700">{formatCurrency(getTotalCollected(reservation))}</dd>
+          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Tahsil Edilen</dt>
+          <dd className="font-semibold text-emerald-700">{formatCurrency(getTotalCollected(reservation, payments))}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Kalan Bakiye</dt>
-          <dd className="font-semibold text-rose-700">{formatCurrency(getRemainingBalance(reservation))}</dd>
+          <dd className="font-semibold text-rose-700">{formatCurrency(getRemainingBalance(reservation, payments))}</dd>
         </div>
       </dl>
     </button>
   )
 }
 
-export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: CustomersPageProps) {
+export function CustomersPage({ refreshToken, onUpdated }: CustomersPageProps) {
   const {
     units,
     reservations,
@@ -115,6 +124,11 @@ export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: C
   } = useCustomersPage(refreshToken)
 
   const formatCurrency = useFormatAdminCurrency()
+  const canViewPrices = useCanViewPrices()
+  const { paymentsByReservation } = useBatchPaymentSummaries(
+    rows.map((row) => row.reservation),
+    refreshToken,
+  )
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const selectedReservation = rows.find((row) => row.reservation.id === selectedId)?.reservation
@@ -146,7 +160,7 @@ export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: C
             <button
               type="button"
               disabled={rows.length === 0}
-              onClick={() => void exportCustomerListPdf(rows)}
+              onClick={() => void exportCustomerListPdf(rows, canViewPrices)}
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               PDF İndir
@@ -154,7 +168,7 @@ export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: C
             <button
               type="button"
               disabled={rows.length === 0}
-              onClick={() => void exportCustomerListExcel(rows)}
+              onClick={() => void exportCustomerListExcel(rows, canViewPrices)}
               className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               Excel İndir
@@ -267,6 +281,7 @@ export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: C
                 row={row}
                 selected={selectedId === row.reservation.id}
                 onSelect={() => setSelectedId(row.reservation.id)}
+                paymentsByReservation={paymentsByReservation}
               />
             ))}
           </div>
@@ -282,7 +297,7 @@ export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: C
                     <th className="px-4 py-3.5 font-bold">Giriş Tarihi</th>
                     <th className="px-4 py-3.5 font-bold">Çıkış Tarihi</th>
                     <th className="px-4 py-3.5 font-bold">Toplam Ücret</th>
-                    <th className="px-4 py-3.5 font-bold">Ödenen Tutar</th>
+                    <th className="px-4 py-3.5 font-bold">Tahsil Edilen</th>
                     <th className="px-4 py-3.5 font-bold">Kalan Bakiye</th>
                     <th className="px-4 py-3.5 font-bold">Durum</th>
                   </tr>
@@ -290,6 +305,7 @@ export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: C
                 <tbody>
                   {rows.map(({ reservation, unitName }) => {
                     const isSelected = selectedId === reservation.id
+                    const payments = paymentsByReservation.get(reservation.id) ?? []
 
                     return (
                       <tr
@@ -314,10 +330,10 @@ export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: C
                           {formatCurrency(reservation.toplam_ucret)}
                         </td>
                         <td className="px-4 py-3.5 text-emerald-700">
-                          {formatCurrency(getTotalCollected(reservation))}
+                          {formatCurrency(getTotalCollected(reservation, payments))}
                         </td>
                         <td className="px-4 py-3.5 font-medium text-rose-700">
-                          {formatCurrency(getRemainingBalance(reservation))}
+                          {formatCurrency(getRemainingBalance(reservation, payments))}
                         </td>
                         <td className="px-4 py-3.5">
                           <StatusBadge status={reservation.durum} />
@@ -340,10 +356,6 @@ export function CustomersPage({ refreshToken, onUpdated, onOdaKabulComplete }: C
           reservations={reservations}
           onClose={() => setSelectedId(null)}
           onUpdated={handleUpdated}
-          onOdaKabulComplete={() => {
-            setSelectedId(null)
-            onOdaKabulComplete?.()
-          }}
         />
       )}
     </div>

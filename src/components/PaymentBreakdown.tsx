@@ -1,18 +1,17 @@
-import {
-  getRemainingBalance,
-  getTotalCollected,
-  type ReservationPaymentFields,
-} from '../reservations/depositCalculations'
 import { useFormatAdminCurrency } from '../auth/useFormatAdminCurrency'
+import type { ReservationPaymentFields } from '../reservations/depositCalculations'
+import { buildPaymentSummary } from '../reservations/paymentCalculations'
+import type { PaymentRecord } from '../types/database'
 
 interface PaymentBreakdownProps {
   reservation: ReservationPaymentFields
+  payments?: PaymentRecord[]
 }
 
-export function PaymentBreakdown({ reservation }: PaymentBreakdownProps) {
+export function PaymentBreakdown({ reservation, payments = [] }: PaymentBreakdownProps) {
   const formatCurrency = useFormatAdminCurrency()
-  const totalCollected = getTotalCollected(reservation)
-  const remainingBalance = getRemainingBalance(reservation)
+  const summary = buildPaymentSummary(reservation, payments)
+  const { totalCollected, remainingBalance } = summary
 
   return (
     <dl className="grid gap-3 sm:grid-cols-3">
@@ -23,7 +22,7 @@ export function PaymentBreakdown({ reservation }: PaymentBreakdownProps) {
         </dd>
       </div>
       <div className="rounded-xl bg-white/80 p-3 ring-1 ring-emerald-100">
-        <dt className="text-xs font-semibold uppercase text-emerald-700">Alınan Ücret</dt>
+        <dt className="text-xs font-semibold uppercase text-emerald-700">Tahsil Edilen</dt>
         <dd className="mt-1 text-lg font-bold text-emerald-900">{formatCurrency(totalCollected)}</dd>
       </div>
       <div className="rounded-xl bg-white/80 p-3 ring-1 ring-rose-100">

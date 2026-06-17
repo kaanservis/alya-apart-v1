@@ -239,11 +239,9 @@ export function reservationOverlapsRange(
   rangeStart: Date,
   rangeEnd: Date,
 ): boolean {
-  const startKey = girisTarihi
-  const endKey = cikisTarihi
   const rangeStartKey = dateKeyFromCalendarDate(rangeStart)
   const rangeEndKey = dateKeyFromCalendarDate(rangeEnd)
-  return compareDateKeys(startKey, rangeEndKey) <= 0 && compareDateKeys(endKey, rangeStartKey) >= 0
+  return compareDateKeys(girisTarihi, rangeEndKey) <= 0 && compareDateKeys(cikisTarihi, rangeStartKey) > 0
 }
 
 export { TURKEY_TIMEZONE, getTurkeyDateKey, getTurkeyTodayCalendarDate }

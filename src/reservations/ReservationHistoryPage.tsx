@@ -15,9 +15,10 @@ import {
 } from '../components/admin/adminMobileStyles'
 import { GuestArchiveDetail } from '../guests/GuestArchiveDetail'
 import type { GuestEntryWithPhotos } from '../guests/guestTypes'
-import type { Reservation } from '../types/database'
+import type { PaymentRecord, Reservation } from '../types/database'
 import { formatReservationDate } from './reservationDisplay'
-import { getTotalCollected } from './depositCalculations'
+import { getRemainingBalance, getTotalCollected } from './depositCalculations'
+import { useBatchPaymentSummaries } from './useBatchPaymentSummaries'
 import {
   EMPTY_HISTORY_FILTERS,
   useReservationHistory,
@@ -41,6 +42,7 @@ interface ReservationHistoryPageProps {
 export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryPageProps) {
   const { units, reservations, guestMap, totalCount, filters, setFilters, loading, error, unitMap } =
     useReservationHistory(refreshToken)
+  const { paymentsByReservation } = useBatchPaymentSummaries(reservations, refreshToken)
 
   const resultLabel = useMemo(() => {
     if (loading) {
@@ -182,6 +184,7 @@ export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryP
                     reservation={reservation}
                     unitName={unitMap.get(reservation.konaklama_birimi_id) ?? '—'}
                     guests={guestMap.get(reservation.id) ?? []}
+                    payments={paymentsByReservation.get(reservation.id) ?? []}
                   />
                 ))}
               </div>
@@ -196,7 +199,8 @@ export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryP
                       <th className="px-4 py-3.5 font-bold">Çıkış</th>
                       <th className="px-4 py-3.5 font-bold">Kişi</th>
                       <th className="px-4 py-3.5 font-bold">Toplam</th>
-                      <th className="px-4 py-3.5 font-bold">Alınan</th>
+                      <th className="px-4 py-3.5 font-bold">Tahsil Edilen</th>
+                      <th className="px-4 py-3.5 font-bold">Kalan</th>
                       <th className="px-4 py-3.5 font-bold">Durum</th>
                       <th className="px-4 py-3.5 font-bold">Detay</th>
                     </tr>
@@ -208,6 +212,7 @@ export function ReservationHistoryPage({ refreshToken = 0 }: ReservationHistoryP
                         reservation={reservation}
                         unitName={unitMap.get(reservation.konaklama_birimi_id) ?? '—'}
                         guests={guestMap.get(reservation.id) ?? []}
+                        payments={paymentsByReservation.get(reservation.id) ?? []}
                       />
                     ))}
                   </tbody>
@@ -240,10 +245,12 @@ function HistoryMobileCard({
   reservation,
   unitName,
   guests,
+  payments,
 }: {
   reservation: Reservation
   unitName: string
   guests: GuestEntryWithPhotos[]
+  payments: PaymentRecord[]
 }) {
   const formatCurrency = useFormatAdminCurrency()
   const [expanded, setExpanded] = useState(false)
@@ -284,10 +291,16 @@ function HistoryMobileCard({
           <dt className={adminMobileCardLabel}>Toplam</dt>
           <dd className={adminMobileCardValue}>{formatCurrency(reservation.toplam_ucret)}</dd>
         </div>
-        <div className="col-span-2">
-          <dt className={adminMobileCardLabel}>Alınan</dt>
+        <div>
+          <dt className={adminMobileCardLabel}>Tahsil Edilen</dt>
           <dd className="text-xs font-semibold text-emerald-700">
-            {formatCurrency(getTotalCollected(reservation))}
+            {formatCurrency(getTotalCollected(reservation, payments))}
+          </dd>
+        </div>
+        <div>
+          <dt className={adminMobileCardLabel}>Kalan</dt>
+          <dd className="text-xs font-semibold text-rose-700">
+            {formatCurrency(getRemainingBalance(reservation, payments))}
           </dd>
         </div>
       </dl>
@@ -308,10 +321,12 @@ function HistoryRow({
   reservation,
   unitName,
   guests,
+  payments,
 }: {
   reservation: Reservation
   unitName: string
   guests: GuestEntryWithPhotos[]
+  payments: PaymentRecord[]
 }) {
   const formatCurrency = useFormatAdminCurrency()
   const [expanded, setExpanded] = useState(false)
@@ -331,7 +346,12 @@ function HistoryRow({
         <td className="px-4 py-3.5 font-medium text-slate-900">
           {formatCurrency(reservation.toplam_ucret)}
         </td>
-        <td className="px-4 py-3.5 text-slate-700">{formatCurrency(getTotalCollected(reservation))}</td>
+        <td className="px-4 py-3.5 text-emerald-700">
+          {formatCurrency(getTotalCollected(reservation, payments))}
+        </td>
+        <td className="px-4 py-3.5 text-rose-700">
+          {formatCurrency(getRemainingBalance(reservation, payments))}
+        </td>
         <td className="px-4 py-3.5">
           <HistoryStatusBadge status={reservation.durum} />
         </td>
@@ -347,7 +367,7 @@ function HistoryRow({
       </tr>
       {expanded && (
         <tr className="border-b border-slate-100 last:border-b-0">
-          <td colSpan={9} className="p-0">
+          <td colSpan={10} className="p-0">
             <GuestArchiveDetail
               reservationOwner={reservation.ad_soyad}
               kisiSayisi={reservation.kisi_sayisi}

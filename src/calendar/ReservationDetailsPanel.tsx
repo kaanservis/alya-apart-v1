@@ -1,5 +1,5 @@
 import { formatTurkeyDateKey } from '../lib/turkeyDate'
-import { PaymentBreakdown } from '../components/PaymentBreakdown'
+import { ReservationCariHesapSection } from '../reservations/ReservationCariHesapSection'
 import { WhatsAppGuestActions } from '../components/whatsapp/WhatsAppGuestActions'
 import { getRemainingBalance } from '../reservations/depositCalculations'
 import type { ReservationSelection } from './types'
@@ -7,13 +7,18 @@ import type { ReservationSelection } from './types'
 interface ReservationDetailsPanelProps {
   selection: ReservationSelection
   onClose: () => void
+  onUpdated?: () => void
 }
 
 function formatDate(value: string) {
   return formatTurkeyDateKey(value)
 }
 
-export function ReservationDetailsPanel({ selection, onClose }: ReservationDetailsPanelProps) {
+export function ReservationDetailsPanel({
+  selection,
+  onClose,
+  onUpdated,
+}: ReservationDetailsPanelProps) {
   const { reservation, unit } = selection
 
   return (
@@ -71,8 +76,13 @@ export function ReservationDetailsPanel({ selection, onClose }: ReservationDetai
           </div>
         </dl>
 
-        <section className="mt-5 rounded-xl border border-orange-100 bg-orange-50/50 p-4">
-          <PaymentBreakdown reservation={reservation} />
+        <section className="mt-5">
+          <ReservationCariHesapSection
+            reservation={reservation}
+            sectionTitle=""
+            showTopSummary={false}
+            onUpdated={() => onUpdated?.()}
+          />
         </section>
 
         <section className="mt-5 rounded-xl border border-[#25D366]/20 bg-[#25D366]/5 p-4">
